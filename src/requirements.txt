@@ -1,0 +1,14 @@
+matplotlib~=3.7.1
+neurokit2~=0.2.4
+pandas~=2.0.0
+scikit_learn
+scipy~=1.10.1
+seaborn~=0.12.2
+tensorflow
+wandb~=0.15.0
+wfdb~=4.1.0
+datetime~=5.1
+numpy~=1.23.5
+utils~=1.0.1
+sklearn~=0.0.post4
+scikit-learn~=1.2.2
