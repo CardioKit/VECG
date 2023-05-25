@@ -1,0 +1,7 @@
+matplotlib~=3.7.1
+scikit_learn
+wandb
+datetime
+numpy
+utils~=1.0.1
+tensorflow~=2.13.0rc0
