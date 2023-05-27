@@ -34,6 +34,11 @@ class Encoder(tf.keras.Model):
 
         self.encoder = tf.keras.Model(self.encoder_inputs, [self.z_mean, self.z_log_var, self.z], name="encoder")
 
+    def get_config(self):
+        config = super().get_config()
+        config['latent_dim'] = self.latent_dim
+        return config
+
     def call(self, inputs):
         return self.encoder(inputs)
 
@@ -59,6 +64,11 @@ class Decoder(tf.keras.Model):
 
         self.decoder = tf.keras.Model(self.latent_inputs, self.decoder_outputs, name="decoder")
 
+    def get_config(self):
+        config = super().get_config()
+        config['latent_dim'] = self.latent_dim
+        return config
+
     def call(self, inputs):
         return self.decoder(inputs)
 
@@ -74,6 +84,15 @@ class TC_VAE(tf.keras.Model):
         self.total_loss_tracker = tf.keras.metrics.Mean(name="total_loss")
         self.reconstruction_loss_tracker = tf.keras.metrics.Mean(name="reconstruction_loss")
         self.tc_loss_tracker = tf.keras.metrics.Mean(name="tc_loss")
+
+    def get_config(self):
+        config = super().get_config()
+        config['encoder'] = self.encoder
+        config['decoder'] = self.decoder
+        config['alpha'] = self.alpha_.numpy()
+        config['beta'] = self.beta_.numpy()
+        config['gamma'] = self.gamma_.numpy()
+        return config
 
     @property
     def metrics(self):
