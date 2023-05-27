@@ -1,46 +1,53 @@
 # 1-lead Electrocardiogram Clustering
 
-This project uses Variational Autoencoder (VAE) to cluster 1-lead electrocardiogram signals for the detection of arrythmia.
-To get started with the project you have to install the required libraries.
-Python 3.7 or higher is required to run the software.
+This project focuses on clustering 1-lead electrocardiogram (ECG) heartbeats using the Total Correlation Variational Autoencoder (TC VAE) technique.
+The goal is to detect irregular morphologies in ECG signals, which can serve as indicators of cardiac anomalies like arrhythmia.
 
+## Installation and Setup
+
+To get started with the project, follow these steps:
+
+1. Make sure you have Python version 3.10 installed.
+2. Create a virtual environment to isolate the project dependencies:
+3. nstall the required libraries by running the following command in the project directory:
 ````
 pip install -r requirements.txt
 ````
 
-The raw ecg signals are supposed to be stored in the `./data` folder.
-The data used in this project and the respective article can be downloaded via
+## Data Preparation
 
+The raw ECG data is available in a remote repository and needs to be downloaded and built.
+Perform the following steps:
+
+1. Clone the ECG-TFDS repository:
 ```
-mkdir data
-cd data
-wget https://figshare.com/ndownloader/files/15651326
-unzip 15651326
-cd ..
+git clone https://github.com/CardioKit/ECG-TFDS
+```
+2. Install the requirements for ECG-TFDS:
+```
+pip install -r ./ECG-TFDS/requirements.txt
+```
+3. Change to the ECG-TFDS source directory:
+```
+cd ./ECG-TFDS/src/zheng
+```
+4. Build the dataset:
+```
+tfds build --register_checksums
 ```
 
-or from the corresponding website https://figshare.com/collections/ChapmanECG/4560497/2
+## Running the Code:
 
-In case you'd like to add a new data source you have to implement your own data class in the `./dataset.py` file.
-The structure and functions have to be of the same format like the objects in place.
-
-You can run the code via
+Execute the main file to run the code:
 
 ```
 python main.py 
 ```
-and might provide the following optionals
+The main file supports several optional parameters:
 
-```
-  -h, --help            show this help message and exit
-  --preloaded N         use preloaded data in ./temp folder
-  --epochs N            number of epochs to train (default: 5000)
-  --batch_size N        input batch size for training (default: 512)
-  --seed S              random seed (default: 42)
-  --latent_dim N        dimension of the latent vector space (default: 32)
-  --intermediate_dim N  dimension of the intermediate layer (default: 128)
-  --final_length N      length of preprocessed signal (default: 1000)
-  --seconds N           seconds the preprocessed signal represents (default: 10)
-  --model N             load stored model
-  --beta N              beta parameter of beta-VAE (default: 1.0)
-```
+- **--path_results**: Specify the location to save the results (default: ../results).
+- **--epochs**: Set the number of training epochs (default: 100).
+- **--batch_size**: Specify the batch size for model training (default: 256).
+- **--seed**: Set the seed for reproducibility (default: 42).
+- **--latent_dim**: Set the dimension of the latent vector space (default: 16).
+Adjust these parameters according to your requirements.
