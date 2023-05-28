@@ -74,13 +74,14 @@ class Decoder(tf.keras.Model):
 
 
 class TC_VAE(tf.keras.Model):
-    def __init__(self, encoder, decoder, alpha=1.0, beta=1.0, gamma=1.0, **kwargs):
+    def __init__(self, encoder, decoder, coefficients=(1.0, 1.0, 1.0), **kwargs):
         super().__init__(**kwargs)
+
         self.encoder = encoder
         self.decoder = decoder
-        self.alpha_ = tf.Variable(alpha, name="weight_index", trainable=False)
-        self.beta_ = tf.Variable(beta, name="weight_tc", trainable=False)
-        self.gamma_ = tf.Variable(gamma, name="weight_dimension", trainable=False)
+        self.alpha_ = tf.Variable(coefficients[0], name="weight_index", trainable=False)
+        self.beta_ = tf.Variable(coefficients[1], name="weight_tc", trainable=False)
+        self.gamma_ = tf.Variable(coefficients[2], name="weight_dimension", trainable=False)
         self.total_loss_tracker = tf.keras.metrics.Mean(name="total_loss")
         self.reconstruction_loss_tracker = tf.keras.metrics.Mean(name="reconstruction_loss")
         self.tc_loss_tracker = tf.keras.metrics.Mean(name="tc_loss")

@@ -9,8 +9,10 @@ To get started with the project, follow these steps:
 
 1. Make sure you have Python version 3.10 installed.
 2. Create a virtual environment to isolate the project dependencies:
-3. nstall the required libraries by running the following command in the project directory:
+3. Install the required libraries by running the following command in the project directory:
 ````
+conda create -n ecg python=3.10
+conda activate ecg
 pip install -r requirements.txt
 ````
 
