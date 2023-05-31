@@ -73,7 +73,7 @@ class Decoder(tf.keras.Model):
         return self.decoder(inputs)
 
 
-class TC_VAE(tf.keras.Model):
+class TCVAE(tf.keras.Model):
     def __init__(self, encoder, decoder, coefficients=(1.0, 1.0, 1.0), **kwargs):
         super().__init__(**kwargs)
 

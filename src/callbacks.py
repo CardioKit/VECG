@@ -2,6 +2,7 @@ import tensorflow as tf
 from sklearn.manifold import TSNE
 import wandb
 from matplotlib import pyplot as plt
+import numpy as np
 
 
 class KLCoefficientScheduler(tf.keras.callbacks.Callback):
@@ -20,7 +21,7 @@ class KLCoefficientScheduler(tf.keras.callbacks.Callback):
 
 class LatentVectorSpaceSnapshot(tf.keras.callbacks.Callback):
 
-    def __init__(self, data, labelling, period=10):
+    def __init__(self, data, labelling, period=1):
         super(LatentVectorSpaceSnapshot, self).__init__()
         self.data = data
         self.labelling = labelling
@@ -28,10 +29,24 @@ class LatentVectorSpaceSnapshot(tf.keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         if epoch % self.period == 0:
-            encoded = self.model.encoder(self.data)
-            x_tsne = TSNE(n_components=3).fit_transform(encoded[2])
-            fig = plt.scatter(x_tsne[0], x_tsne[1])
-            wandb.log({"lv_space": fig})
+            encoded = np.nan_to_num(self.model.encoder(self.data)[2])
+            x_tsne = TSNE(n_components=2).fit_transform(encoded)
+            plt.scatter(x_tsne[:, 0], x_tsne[:, 1], c=self.labelling, s=2)
+            wandb.log({"lv_space": wandb.Image(plt)})
+            plt.close()
+
+
+class NearestNeighbourPerformance(tf.keras.callbacks.Callback):
+
+    def __init__(self, data, labelling, period=10):
+        super(NearestNeighbourPerformance, self).__init__()
+        self.data = data
+        self.labelling = labelling
+        self.period = period
+
+    def on_epoch_end(self, epoch, logs=None):
+        if epoch % self.period == 0:
+            wandb.log({"nn_performance": None})
 
 
 class ReconstructionPlot(tf.keras.callbacks.Callback):
@@ -43,7 +58,7 @@ class ReconstructionPlot(tf.keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         if epoch % self.period == 0:
-            reconstructed = self.model.encoder.predict(self.data)
+            reconstructed = self.model.predict(self.data)
             fig, axs = plt.subplots(self.n, 1, sharex=True)
 
             for k in range(self.n):
@@ -55,7 +70,6 @@ class ReconstructionPlot(tf.keras.callbacks.Callback):
             plt.xlabel('Time')  # Add x-axis label if needed
             plt.ylabel('mV')  # Add y-axis label if needed
 
-            wandb.log({"reconstruction": fig})
+            wandb.log({"reconstruction": wandb.Image(plt)})
 
             plt.close()
-
