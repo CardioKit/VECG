@@ -168,5 +168,5 @@ class TCVAE(tf.keras.Model):
         return {
             "loss": self.total_loss_tracker.result(),
             "reconstruction_loss": self.reconstruction_loss_tracker.result(),
-            "tc_loss": tc_loss,
+            "tc_loss": self.tc_loss_tracker.result(),
         }

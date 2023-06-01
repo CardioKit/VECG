@@ -1,9 +1,9 @@
 import argparse
-# import datetime
+import datetime
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import wandb
-# import wandb.keras as cb
+import wandb.keras as cb
 import logging
 from model import Encoder, Decoder, TCVAE
 from callbacks import LatentVectorSpaceSnapshot, ReconstructionPlot
@@ -30,8 +30,8 @@ def main(arguments):
     ######################################################
     # INITIALIZATION
     ######################################################
-    # start_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    # model_path = arguments.path_results + '/model/best_vae_' + start_time
+    start_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    model_path = arguments.path_results + '/model/best_vae_' + start_time
     wandb.init(project='vecg', dir=arguments.path_results, config=arguments)
     wandb_logger = logging.getLogger("wandb")
     wandb_logger.setLevel(logging.ERROR)
@@ -60,8 +60,8 @@ def main(arguments):
     tc_vae.compile(optimizer=tf.keras.optimizers.legacy.Adam())
     data_sample, label_sample = get_samples(train, n=100, labels=True)
     callbacks = [
-        # cb.WandbMetricsLogger(),
-        # cb.WandbModelCheckpoint(model_path),
+        cb.WandbMetricsLogger(),
+        cb.WandbModelCheckpoint(model_path),
         ReconstructionPlot(get_samples(train, n=4)),
         LatentVectorSpaceSnapshot(data_sample, label_sample)
     ]

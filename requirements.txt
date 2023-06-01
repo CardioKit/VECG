@@ -1,6 +1,6 @@
-tensorflow~=2.13.0rc0
-wandb~=0.15.3
-numpy~=1.24.3
-scikit-learn~=1.2.2
-matplotlib~=3.7.1
+numpy
+tensorflow
 tensorflow_datasets
+wandb
+scikit-learn
+matplotlib
