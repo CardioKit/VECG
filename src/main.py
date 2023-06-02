@@ -70,7 +70,8 @@ def main(arguments):
         data_generator(train),
         steps_per_epoch=len(train),
         epochs=arguments.epochs,
-        # validation_data=data_generator(val),
+        validation_data=data_generator(val),
+        validation_steps=len(val),
         callbacks=callbacks,
         verbose=1,
     )
