@@ -3,4 +3,3 @@ tensorflow
 tensorflow_datasets
 wandb
 scikit-learn
-matplotlib

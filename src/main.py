@@ -3,7 +3,7 @@ import datetime
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import wandb
-import wandb.keras as cb
+from wandb.integration.keras import WandbMetricsLogger, WandbModelCheckpoint
 import logging
 from model import Encoder, Decoder, TCVAE
 from callbacks import LatentVectorSpaceSnapshot, ReconstructionPlot
@@ -60,8 +60,8 @@ def main(arguments):
     tc_vae.compile(optimizer=tf.keras.optimizers.legacy.Adam())
     data_sample, label_sample = get_samples(train, n=100, labels=True)
     callbacks = [
-        cb.WandbMetricsLogger(),
-        cb.WandbModelCheckpoint(model_path),
+        WandbMetricsLogger(),
+        WandbModelCheckpoint(model_path),
         ReconstructionPlot(get_samples(train, n=4)),
         LatentVectorSpaceSnapshot(data_sample, label_sample)
     ]
