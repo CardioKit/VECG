@@ -3,3 +3,4 @@ tensorflow
 tensorflow_datasets
 wandb
 scikit-learn
+wfdb

@@ -23,13 +23,14 @@ def get_samples(dataset, n, labels=False):
     k = None
     for example in dataset.take(1):
         k = example
-    return (k['ecg']['I'][0:n], k['qt_interval'][0:n]) if labels else k['ecg']['I'][0:n]
+    return (k['ecg']['I'][0:n], k['quality'][0:n]) if labels else k['ecg']['I'][0:n]
 
 
 def main(arguments):
     ######################################################
     # INITIALIZATION
     ######################################################
+    tf.random.set_seed(arguments.seed)
     start_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     model_path = arguments.path_results + '/model/best_vae_' + start_time
     wandb.init(project='vecg', dir=arguments.path_results, config=arguments)
@@ -41,7 +42,7 @@ def main(arguments):
     ######################################################
     data = tfds.load(
         arguments.dataset,
-        split=['train[:90%]', 'train[90%:]'],
+        split=['train[:90%]', 'train[10%:]'],
         shuffle_files=True,
     )
 
@@ -74,6 +75,7 @@ def main(arguments):
         validation_steps=len(val),
         callbacks=callbacks,
         verbose=1,
+        #use_multiprocessing=True,
     )
 
 
