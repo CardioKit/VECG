@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 
-
 class Sampling(tf.keras.layers.Layer):
     def call(self, inputs):
         z_mean, z_log_var = inputs
@@ -87,6 +86,7 @@ class TCVAE(tf.keras.Model):
         self.gamma_ = tf.Variable(coefficients[2], name="weight_dimension", trainable=False)
         self.total_loss_tracker = tf.keras.metrics.Mean(name="total_loss")
         self.reconstruction_loss_tracker = tf.keras.metrics.Mean(name="reconstruction_loss")
+        self.kl_loss_tracker = tf.keras.metrics.Mean(name="kl_loss")
         self.tc_loss_tracker = tf.keras.metrics.Mean(name="tc_loss")
 
     def get_config(self):
@@ -103,6 +103,7 @@ class TCVAE(tf.keras.Model):
         return [
             self.total_loss_tracker,
             self.reconstruction_loss_tracker,
+            self.kl_loss_tracker,
             self.tc_loss_tracker,
         ]
 
@@ -144,32 +145,68 @@ class TCVAE(tf.keras.Model):
         reconstruction = self.decoder(z)
         return reconstruction
 
-    def calculate_tc_loss(self, z_mean, z_log_var, z):
-        # Calculate total correlation loss
-        batch_size = tf.shape(z_mean)[0]
-        dim = tf.shape(z_mean)[1]
-        eps = tf.keras.backend.random_normal(shape=(batch_size, dim))
-        z_eps = z_mean + tf.exp(0.5 * z_log_var) * eps
-        log_qz_x = self.alpha_ * tf.reduce_sum(-0.5 * (z * z + tf.math.log(2 * np.pi) + z_log_var), axis=1)
-        log_pz = self.beta_ * tf.reduce_sum(-0.5 * (z_eps * z_eps + tf.math.log(2 * np.pi)), axis=1)
-        log_qz = self.gamma_ * tf.reduce_sum(-0.5 * (eps * eps + tf.math.log(2 * np.pi)), axis=1)
-        tc_loss = tf.reduce_mean(log_qz_x - log_qz - log_pz)
-        return tc_loss
+    def gaussian_log_density(self, samples, mean, log_squared_scale):
+        pi = tf.constant(np.pi)
+        normalization = tf.math.log(2. * pi)
+        inv_sigma = tf.math.exp(-log_squared_scale)
+        tmp = (samples - mean)
+        return -0.5 * (tmp * tmp * inv_sigma + log_squared_scale + normalization)
+
+    def total_correlation(self, z, z_mean, z_log_squared_scale):
+        # TODO: declare source - https://github.com/julian-carpenter/beta-TCVAE
+        """Estimate of total correlation on a batch.
+        We need to compute the expectation over a batch of: E_j [log(q(z(x_j))) -
+        log(prod_l q(z(x_j)_l))]. We ignore the constants as they do not matter
+        for the minimization. The constant should be equal to (num_latents - 1) *
+        log(batch_size * dataset_size)
+        Args:
+          z: [batch_size, num_latents]-tensor with sampled representation.
+          z_mean: [batch_size, num_latents]-tensor with mean of the encoder.
+          z_log_squared_scale: [batch_size, num_latents]-tensor with log variance of the encoder.
+        Returns:
+          Total correlation estimated on a batch.
+        """
+        # Compute log(q(z(x_j)|x_i)) for every sample in the batch, which is a
+        # tensor of size [batch_size, batch_size, num_latents]. In the following
+        # comments, [batch_size, batch_size, num_latents] are indexed by [j, i, l].
+
+        log_qz_prob = self.gaussian_log_density(
+            tf.expand_dims(z, 1), tf.expand_dims(z_mean, 0),
+            tf.expand_dims(z_log_squared_scale, 0))
+        log_qz_product = tf.math.reduce_sum(
+            tf.math.reduce_logsumexp(log_qz_prob, axis=1, keepdims=False),
+            axis=1,
+            keepdims=False)
+        # Compute log(q(z(x_j))) as log(sum_i(q(z(x_j)|x_i))) + constant =
+        # log(sum_i(prod_l q(z(x_j)_l|x_i))) + constant.
+        log_qz = tf.math.reduce_logsumexp(
+            tf.math.reduce_sum(log_qz_prob, axis=2, keepdims=False),
+            axis=1,
+            keepdims=False)
+        return tf.math.reduce_mean(log_qz - log_qz_product) # * (self.beta_ - 1.)
+
+
+    def kl_penalty(self, z_mean, z_log_squared_scale):
+        summand = tf.math.square(z_mean) + tf.math.exp(z_log_squared_scale) - z_log_squared_scale - 1
+        return tf.math.reduce_mean(0.5 * tf.math.reduce_sum(summand, [1]), name="kl_loss")
 
     def train_step(self, data):
         with tf.GradientTape() as tape:
             z_mean, z_log_var, z = self.encoder(data)
             reconstruction = self.decoder(z)
             reconstruction_loss = tf.reduce_mean(tf.keras.losses.mean_absolute_error(data, reconstruction))
-            tc_loss = self.calculate_tc_loss(z_mean, z_log_var, z)
-            total_loss = reconstruction_loss + tc_loss
+            kl_loss = self.kl_penalty(z_mean, z_log_var)
+            tc_loss = self.total_correlation(z, z_mean, z_log_var)
+            total_loss = tf.math.add(tf.math.add(reconstruction_loss, kl_loss), tc_loss)
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
         self.total_loss_tracker.update_state(total_loss)
+        self.kl_loss_tracker.update_state(kl_loss)
         self.reconstruction_loss_tracker.update_state(reconstruction_loss)
         self.tc_loss_tracker.update_state(tc_loss)
         return {
             "loss": self.total_loss_tracker.result(),
             "reconstruction_loss": self.reconstruction_loss_tracker.result(),
+            "kl_loss": self.kl_loss_tracker.result(),
             "tc_loss": self.tc_loss_tracker.result(),
         }
