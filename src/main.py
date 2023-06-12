@@ -33,7 +33,7 @@ def main(arguments):
     tf.random.set_seed(arguments.seed)
     start_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     model_path = arguments.path_results + '/model/best_vae_' + start_time
-    wandb.init(project='vecg', dir=arguments.path_results, config=arguments)
+    wandb.init(project='vecg', dir=arguments.path_results, mode=arguments.wandb_mode, config=arguments)
     wandb_logger = logging.getLogger("wandb")
     wandb_logger.setLevel(logging.ERROR)
 
