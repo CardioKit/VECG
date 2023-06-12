@@ -201,7 +201,8 @@ class TCVAE(tf.keras.Model):
             kl_loss = self.kl_penalty(z_mean, z_log_var)
             tc_loss = self.total_correlation(z, z_mean, z_log_var)
 
-            total_loss = tf.math.add(tf.math.add(reconstruction_loss, kl_loss), tc_loss)
+            elbo = tf.math.add(reconstruction_loss, kl_loss, name='elbo')
+            total_loss = tf.math.add(elbo, tc_loss, name='loss')
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
