@@ -152,6 +152,9 @@ class TCVAE(tf.keras.Model):
         tmp = (samples - mean)
         return -0.5 * (tmp * tmp * inv_sigma + log_squared_scale + normalization)
 
+    def reconstruction_loss(self, data, reconstruction):
+        return tf.reduce_mean(tf.keras.losses.mean_absolute_error(data, reconstruction))
+
     def total_correlation(self, z, z_mean, z_log_squared_scale):
         # TODO: declare source - https://github.com/julian-carpenter/beta-TCVAE
         """Estimate of total correlation on a batch.
@@ -194,10 +197,13 @@ class TCVAE(tf.keras.Model):
         with tf.GradientTape() as tape:
             z_mean, z_log_var, z = self.encoder(data)
             reconstruction = self.decoder(z)
-            reconstruction_loss = tf.reduce_mean(tf.keras.losses.mean_absolute_error(data, reconstruction))
+
+            reconstruction_loss = self.reconstruction_loss(data, reconstruction)
             kl_loss = self.kl_penalty(z_mean, z_log_var)
             tc_loss = self.total_correlation(z, z_mean, z_log_var)
+
             total_loss = tf.math.add(tf.math.add(reconstruction_loss, kl_loss), tc_loss)
+
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
         self.total_loss_tracker.update_state(total_loss)

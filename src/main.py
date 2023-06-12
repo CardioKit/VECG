@@ -56,7 +56,7 @@ def main(arguments):
 
     encoder = Encoder(arguments.latent_dim)
     decoder = Decoder(arguments.latent_dim)
-    
+
     tc_vae = TCVAE(encoder, decoder, tuple(arguments.coefficients))
     tc_vae.compile(optimizer=tf.keras.optimizers.legacy.Adam())
     data_sample, label_sample = get_samples(train, n=100, labels=True)
