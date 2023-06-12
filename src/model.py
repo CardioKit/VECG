@@ -172,7 +172,8 @@ class TCVAE(tf.keras.Model):
         # Compute log(q(z(x_j)|x_i)) for every sample in the batch, which is a
         # tensor of size [batch_size, batch_size, num_latents]. In the following
         # comments, [batch_size, batch_size, num_latents] are indexed by [j, i, l].
-
+        print(tf.expand_dims(z, 1))
+        print(tf.expand_dims(z_mean, 0))
         log_qz_prob = self.gaussian_log_density(
             tf.expand_dims(z, 1), tf.expand_dims(z_mean, 0),
             tf.expand_dims(z_log_squared_scale, 0))
@@ -186,7 +187,7 @@ class TCVAE(tf.keras.Model):
             tf.math.reduce_sum(log_qz_prob, axis=2, keepdims=False),
             axis=1,
             keepdims=False)
-        return tf.math.reduce_mean(log_qz - log_qz_product) # * (self.beta_ - 1.)
+        return tf.math.reduce_mean(log_qz - log_qz_product) * (self.beta_ - 1.)
 
 
     def kl_penalty(self, z_mean, z_log_squared_scale):

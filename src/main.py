@@ -58,7 +58,7 @@ def main(arguments):
     decoder = Decoder(arguments.latent_dim)
 
     tc_vae = TCVAE(encoder, decoder, tuple(arguments.coefficients))
-    tc_vae.compile(optimizer=tf.keras.optimizers.legacy.Adam())
+    tc_vae.compile(optimizer=tf.keras.optimizers.legacy.RMSprop())
     data_sample, label_sample = get_samples(train, n=100, labels=True)
     callbacks = [
         WandbMetricsLogger(),
@@ -90,6 +90,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=256, help='batch size for model training (default: 256)')
     parser.add_argument('--seed', type=int, default=42, help='seed for reproducibility (default: 42)')
     parser.add_argument('--latent_dim', type=int, default=16, help='dimension of the latent vector space (default: 16)')
+    parser.add_argument('--wandb_mode', type=str, default='online', help='Disable wandb tracking (default: online)')
 
     args = parser.parse_args()
     main(args)
