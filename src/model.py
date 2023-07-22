@@ -90,7 +90,10 @@ class TCVAE(tf.keras.Model):
         self.mss = mss
         self.total_loss_tracker = tf.keras.metrics.Mean(name="total_loss")
         self.reconstruction_loss_tracker = tf.keras.metrics.Mean(name="reconstruction_loss")
-        self.kl_loss_tracker = tf.keras.metrics.Mean(name="kl_loss")
+        self.mi_loss_tracker = tf.keras.metrics.Mean(name="mi_loss")
+        self.tc_loss_tracker = tf.keras.metrics.Mean(name="tc_loss")
+        self.dw_kl_tracker = tf.keras.metrics.Mean(name="dw_kl")
+
         self.prior_params = tf.zeros(self.encoder.latent_dim, 2)
 
     def _get_prior_params(self, batch_size=1):
@@ -112,7 +115,9 @@ class TCVAE(tf.keras.Model):
         return [
             self.total_loss_tracker,
             self.reconstruction_loss_tracker,
-            self.kl_loss_tracker,
+            self.mi_loss_tracker,
+            self.tc_loss_tracker,
+            self.dw_kl_tracker,
         ]
 
     @property
@@ -219,29 +224,32 @@ class TCVAE(tf.keras.Model):
         tc_loss = tf.cast(tf.reduce_mean(log_qz - log_qz_product), tf.float32)
         dimension_wise_kl = tf.cast(tf.reduce_mean(log_qz_product - log_prior), tf.float32)
 
-        kl_loss = self.alpha_ * mutual_info_loss + self.beta_ * tc_loss + self.gamma_ * dimension_wise_kl
-        total_loss = recon_loss + kl_loss
-
-        return total_loss, recon_loss, kl_loss
+        return recon_loss, mutual_info_loss, tc_loss, dimension_wise_kl
 
     @tf.function
     def train_step(self, data):
         with tf.GradientTape() as tape:
             z_mean, z_log_var, z = self.encode(data)
             reconstruction = self.decode(z)
-            total_loss, reconstruction_loss, kl_loss = self.loss_function(
+            reconstruction_loss, mutual_info_loss, tc_loss, dimension_wise_kl = self.loss_function(
                 reconstruction, data, z_mean, z_log_var, z, self.size_dataset,
             )
+            kl_loss = self.alpha_ * mutual_info_loss + self.beta_ * tc_loss + self.gamma_ * dimension_wise_kl
+            total_loss = reconstruction_loss + kl_loss
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
 
         self.total_loss_tracker.update_state(total_loss)
         self.reconstruction_loss_tracker.update_state(reconstruction_loss)
-        self.kl_loss_tracker.update_state(kl_loss)
+        self.mi_loss_tracker.update_state(mutual_info_loss)
+        self.tc_loss_tracker.update_state(tc_loss)
+        self.dw_kl_tracker.update_state(dimension_wise_kl)
 
         return {
             "loss": self.total_loss_tracker.result(),
             "reconstruction_loss": self.reconstruction_loss_tracker.result(),
-            "kl_loss": self.kl_loss_tracker.result(),
+            "mi_loss": self.mi_loss_tracker.result(),
+            "tc_loss": self.tc_loss_tracker.result(),
+            "dw_kl": self.dw_kl_tracker.result(),
         }

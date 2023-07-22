@@ -57,7 +57,7 @@ def main(arguments):
     encoder = Encoder(arguments.latent_dim)
     decoder = Decoder(arguments.latent_dim)
 
-    tc_vae = TCVAE(encoder, decoder, len(data[0]), tuple(arguments.coefficients))
+    tc_vae = TCVAE(encoder, decoder, len(data[0]), mss=True, coefficients=tuple(arguments.coefficients))
     tc_vae.compile(optimizer=tf.keras.optimizers.legacy.RMSprop())
     data_sample, label_sample = get_samples(train, n=100, labels=True)
     callbacks = [
@@ -84,7 +84,7 @@ if __name__ == '__main__':
     parser.add_argument('--path_results', type=str, default='../results',
                         help='location to save results (default: ../results)')
     parser.add_argument('--dataset', type=str, default='zheng', help='choose tensorflow dataset (default: zheng)')
-    parser.add_argument('--coefficients', nargs=3, type=float, default=(0.001, 0.4, 0.001),
+    parser.add_argument('--coefficients', nargs=3, type=float, default=(1.0, 4.0, 1.0),
                         help='coefficients of KL decomposition (a, b, c)')
     parser.add_argument('--epochs', type=int, default=50, help='epochs of train (default: 50)')
     parser.add_argument('--batch_size', type=int, default=256, help='batch size for model training (default: 256)')
