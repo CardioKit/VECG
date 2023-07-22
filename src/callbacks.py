@@ -29,7 +29,7 @@ class LatentVectorSpaceSnapshot(tf.keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         if epoch % self.period == 0:
-            encoded = np.nan_to_num(self.model.encoder(self.data)[2])
+            encoded = np.nan_to_num(self.model.encode(self.data)[2])
             x_tsne = TSNE(n_components=2).fit_transform(encoded)
             plt.scatter(x_tsne[:, 0], x_tsne[:, 1], c=self.labelling, s=2)
             wandb.log({"lv_space": wandb.Image(plt)})

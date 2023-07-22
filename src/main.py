@@ -42,7 +42,7 @@ def main(arguments):
     ######################################################
     data = tfds.load(
         arguments.dataset,
-        split=['train[:90%]', 'train[10%:]'],
+        split=['train[:5%]', 'train[10%:]'],
         shuffle_files=True,
     )
 
@@ -57,7 +57,7 @@ def main(arguments):
     encoder = Encoder(arguments.latent_dim)
     decoder = Decoder(arguments.latent_dim)
 
-    tc_vae = TCVAE(encoder, decoder, tuple(arguments.coefficients))
+    tc_vae = TCVAE(encoder, decoder, len(data[0]), tuple(arguments.coefficients))
     tc_vae.compile(optimizer=tf.keras.optimizers.legacy.RMSprop())
     data_sample, label_sample = get_samples(train, n=100, labels=True)
     callbacks = [
