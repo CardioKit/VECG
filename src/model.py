@@ -1,4 +1,6 @@
 import math
+
+import numpy as np
 import tensorflow as tf
 
 
@@ -74,12 +76,14 @@ class Sampling(tf.keras.layers.Layer):
         epsilon = tf.random.normal(shape=(batch, dim))
         return z_mean + tf.exp(0.5 * z_log_var) * epsilon
 
+
 class TCVAE(tf.keras.Model):
-    def __init__(self, encoder, decoder, mss=True, coefficients=(1.0, 1.0, 1.0), **kwargs):
+    def __init__(self, encoder, decoder, size_dataset, mss=True, coefficients=(1.0, 1.0, 1.0), **kwargs):
         super().__init__(**kwargs)
 
         self.encoder = encoder
         self.decoder = decoder
+        self.size_dataset = size_dataset
         self.alpha_ = tf.Variable(coefficients[0], name="weight_index", trainable=False)
         self.beta_ = tf.Variable(coefficients[1], name="weight_tc", trainable=False)
         self.gamma_ = tf.Variable(coefficients[2], name="weight_dimension", trainable=False)
@@ -137,9 +141,7 @@ class TCVAE(tf.keras.Model):
 
     def encode(self, inputs):
         z_mean, z_log_var = self.encoder(inputs)
-        #z = tfp.distributions.LogNormal(z_mean, z_log_var).sample([len(z_mean)])
         z = Sampling()(z_mean, z_log_var)
-        #z = Normal(z_mean, z_log_var)
         return z_mean, z_log_var, z
 
     def decode(self, z):
@@ -163,67 +165,77 @@ class TCVAE(tf.keras.Model):
         return -0.5 * (tmp * tmp * inv_sigma + log_var + normalization)
 
     def log_importance_weight_matrix(self, batch_size, dataset_size):
-        """Compute importance weigth matrix for MSS
-        Code from (https://github.com/rtqichen/beta-tcvae/blob/master/vae_quant.py)
         """
-        N = dataset_size
-        M = batch_size - 1
+        TF adapted version of (https://github.com/rtqichen/beta-tcvae/blob/master/vae_quant.py)
+        """
 
-        strat_weight = (N - M) / (N * M)
+        N = tf.constant(dataset_size)
+        M = tf.math.subtract(batch_size, 1)
+        strat_weight = tf.divide(tf.math.subtract(N, M), tf.math.multiply(N, M))
+        new_column1 = tf.cast(tf.fill((batch_size, 1), 1 / N), tf.float32)
+        new_column2 = tf.cast(tf.fill((batch_size, 1), strat_weight), tf.float32)
 
-        W = tf.fill((batch_size, batch_size), 1 / M)
-        W_flat = tf.reshape(W, [-1])
-
-        indices = tf.range(0, batch_size ** 2, M + 1)
-        W_flat = tf.tensor_scatter_nd_update(W_flat, tf.expand_dims(indices, axis=1), 1 / N)
-
-        indices = tf.range(1, batch_size ** 2, M + 1)
-        W_flat = tf.tensor_scatter_nd_update(W_flat, tf.expand_dims(indices, axis=1), strat_weight)
-
-        W = tf.reshape(W_flat, (batch_size, batch_size))
+        W = tf.divide(tf.ones([batch_size, batch_size]), tf.cast(M, tf.float32))
+        W = tf.concat([new_column1, new_column2, W[:, 2:]], axis=1)
         W = tf.tensor_scatter_nd_update(W, [[M - 1, 0]], [strat_weight])
 
         return tf.math.log(W)
 
-    def loss_function(self, reconstruction, x, mu, log_var, z, dataset_size):
+    def loss_function(self, reconstruction, x, mu, log_var, z, size_dataset):
 
+        size_batch = tf.shape(x)[0]
         recon_loss = self.reconstruction_loss(x, reconstruction)
 
-        log_q_z_given_x = tf.cast(tf.reduce_sum(self.gaussian_log_density(z, mu, log_var), axis=1, keepdims=False), tf.float64)
-        log_qz_prob = tf.cast(self.gaussian_log_density(tf.expand_dims(z, 1), tf.expand_dims(mu, 0), tf.expand_dims(log_var, 0)), tf.float64)
-        log_prior = tf.cast(tf.reduce_sum(self.gaussian_log_density(z, tf.zeros_like(z), tf.ones_like(z)), axis=1, keepdims=False), tf.float64)
+        log_q_z_given_x = tf.cast(tf.reduce_sum(self.gaussian_log_density(z, mu, log_var), axis=-1, keepdims=False),
+                                  tf.float64)
+        log_qz_prob = tf.cast(
+            self.gaussian_log_density(tf.expand_dims(z, 1), tf.expand_dims(mu, 0), tf.expand_dims(log_var, 0)),
+            tf.float64)
+        log_prior = tf.cast(
+            tf.reduce_sum(self.gaussian_log_density(z, tf.zeros_like(z), tf.ones_like(z)), axis=1, keepdims=False),
+            tf.float64)
 
         if self.mss:
-            logiw_mat = tf.cast(self.log_importance_weight_matrix(tf.shape(z)[0], dataset_size), tf.float64)
-            log_qz = tf.reduce_logsumexp(logiw_mat + tf.reduce_sum(log_qz_prob, axis=1, keepdims=False), axis=1, keepdims=False)
-            log_qz_product = tf.reduce_logsumexp(tf.reshape(logiw_mat, shape=(tf.shape(z)[0], tf.shape(z)[0], -1)) + log_qz_prob, axis=1, keepdims=False)
+            logiw_mat = tf.cast(self.log_importance_weight_matrix(size_batch, size_dataset), tf.float64)
+            log_qz = tf.reduce_logsumexp(logiw_mat + tf.reduce_sum(log_qz_prob, axis=-1, keepdims=False), axis=-1,
+                                         keepdims=False)
+            log_qz_product = tf.reduce_sum(
+                tf.reduce_logsumexp(
+                    tf.reshape(logiw_mat, shape=(tf.shape(z)[0], tf.shape(z)[0], -1)) + log_qz_prob,
+                    axis=1,
+                    keepdims=False),
+                axis=-1, keepdims=False
+            )
 
         else:
-            product = tf.shape(z)[0] * dataset_size
+            product = tf.shape(z)[0] * size_dataset
             log_tensor = tf.math.log(tf.cast(product, dtype=z.dtype))
-            log_qz = tf.reduce_logsumexp(tf.reduce_sum(log_qz_prob, axis=2, keepdims=False), axis=1, keepdims=False) - log_tensor
-            log_qz_product = tf.reduce_sum(tf.reduce_logsumexp(log_qz_prob, axis=1, keepdims=False) - log_tensor, axis=1, keepdims=False)
+            log_qz = tf.reduce_logsumexp(tf.reduce_sum(log_qz_prob, axis=2, keepdims=False), axis=1,
+                                         keepdims=False) - log_tensor
+            log_qz_product = tf.reduce_sum(tf.reduce_logsumexp(log_qz_prob, axis=1, keepdims=False) - log_tensor,
+                                           axis=1, keepdims=False)
 
         mutual_info_loss = tf.cast(tf.reduce_mean(log_q_z_given_x - log_qz), tf.float32)
         tc_loss = tf.cast(tf.reduce_mean(log_qz - log_qz_product), tf.float32)
-        dimension_wise_KL = tf.cast(tf.reduce_mean(log_qz_product - log_prior), tf.float32)
+        dimension_wise_kl = tf.cast(tf.reduce_mean(log_qz_product - log_prior), tf.float32)
 
-        kl_loss = self.alpha_ * mutual_info_loss + self.beta_ * tc_loss + self.gamma_ * dimension_wise_KL
+        kl_loss = self.alpha_ * mutual_info_loss + self.beta_ * tc_loss + self.gamma_ * dimension_wise_kl
         total_loss = recon_loss + kl_loss
 
         return total_loss, recon_loss, kl_loss
 
+    @tf.function
     def train_step(self, data):
         with tf.GradientTape() as tape:
             z_mean, z_log_var, z = self.encode(data)
             reconstruction = self.decode(z)
-            n = tf.shape(data)[0]
             total_loss, reconstruction_loss, kl_loss = self.loss_function(
-                reconstruction, data, z_mean, z_log_var, z, n,
+                reconstruction, data, z_mean, z_log_var, z, self.size_dataset,
             )
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
+
         self.total_loss_tracker.update_state(total_loss)
         self.reconstruction_loss_tracker.update_state(reconstruction_loss)
         self.kl_loss_tracker.update_state(kl_loss)
