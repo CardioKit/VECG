@@ -61,7 +61,7 @@ def main(arguments):
 
     tc_vae = TCVAE(encoder, decoder, len(data[0]), mss=True, coefficients=tuple(arguments.coefficients))
     tc_vae.compile(optimizer=tf.keras.optimizers.legacy.RMSprop())
-    data_sample, label_sample = get_samples(train, n=100, labels=arguments.label)
+    data_sample, label_sample = get_samples(train, n=100, label=arguments.label)
 
     callbacks = [
         WandbMetricsLogger(),
