@@ -65,7 +65,7 @@ def main(arguments):
 
     callbacks = [
         WandbMetricsLogger(),
-        WandbModelCheckpoint(model_path, monitor='loss', save_best_only=True),
+        WandbModelCheckpoint(model_path, monitor='val_loss', save_best_only=True),
         ReconstructionPlot(get_samples(train, n=4)),
         LatentVectorSpaceSnapshot(data_sample, label_sample)
     ]

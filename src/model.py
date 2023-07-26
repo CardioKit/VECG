@@ -253,3 +253,21 @@ class TCVAE(tf.keras.Model):
             "tc_loss": self.tc_loss_tracker.result(),
             "dw_kl": self.dw_kl_tracker.result(),
         }
+
+    @tf.function
+    def test_step(self, data):
+        z_mean, z_log_var, z = self.encode(data)
+        reconstruction = self.decode(z)
+        reconstruction_loss, mutual_info_loss, tc_loss, dimension_wise_kl = self.loss_function(
+            reconstruction, data, z_mean, z_log_var, z, self.size_dataset,
+        )
+        kl_loss = self.alpha_ * mutual_info_loss + self.beta_ * tc_loss + self.gamma_ * dimension_wise_kl
+        total_loss = reconstruction_loss + kl_loss
+
+        return {
+            "loss": total_loss,
+            "reconstruction_loss": reconstruction_loss,
+            "mi_loss": mutual_info_loss,
+            "tc_loss": tc_loss,
+            "dw_kl": dimension_wise_kl,
+        }
