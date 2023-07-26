@@ -1,5 +1,7 @@
 import argparse
 import datetime
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import tensorflow as tf
 import tensorflow_datasets as tfds
 import wandb
@@ -19,11 +21,11 @@ def data_generator(dataset):
             iterator = iter(dataset)
 
 
-def get_samples(dataset, n, labels=False):
+def get_samples(dataset, n, label=None):
     k = None
     for example in dataset.take(1):
         k = example
-    return (k['ecg']['I'][0:n], k['quality'][0:n]) if labels else k['ecg']['I'][0:n]
+    return (k['ecg']['I'][0:n], k[label][0:n]) if label else k['ecg']['I'][0:n]
 
 
 def main(arguments):
@@ -42,7 +44,7 @@ def main(arguments):
     ######################################################
     data = tfds.load(
         arguments.dataset,
-        split=['train[:5%]', 'train[10%:]'],
+        split=['train[:90%]', 'train[10%:]'],
         shuffle_files=True,
     )
 
@@ -59,10 +61,11 @@ def main(arguments):
 
     tc_vae = TCVAE(encoder, decoder, len(data[0]), mss=True, coefficients=tuple(arguments.coefficients))
     tc_vae.compile(optimizer=tf.keras.optimizers.legacy.RMSprop())
-    data_sample, label_sample = get_samples(train, n=100, labels=True)
+    data_sample, label_sample = get_samples(train, n=100, labels=arguments.label)
+
     callbacks = [
         WandbMetricsLogger(),
-        WandbModelCheckpoint(model_path),
+        WandbModelCheckpoint(model_path, monitor='loss', save_best_only=True),
         ReconstructionPlot(get_samples(train, n=4)),
         LatentVectorSpaceSnapshot(data_sample, label_sample)
     ]
@@ -75,22 +78,22 @@ def main(arguments):
         validation_steps=len(val),
         callbacks=callbacks,
         verbose=1,
-        #use_multiprocessing=True,
     )
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='VECG', description='Representational Learning of ECG using TC-VAE')
-    parser.add_argument('--path_results', type=str, default='../results',
+    parser.add_argument('-r', '--path_results', type=str, default='../results',
                         help='location to save results (default: ../results)')
-    parser.add_argument('--dataset', type=str, default='zheng', help='choose tensorflow dataset (default: zheng)')
-    parser.add_argument('--coefficients', nargs=3, type=float, default=(1.0, 4.0, 1.0),
+    parser.add_argument('-d', '--dataset', type=str, default='zheng', help='choose tensorflow dataset (default: zheng)')
+    parser.add_argument('-l', '--label', type=str, default='quality', help='choose a labelling (default: quality)')
+    parser.add_argument('-c', '--coefficients', nargs=3, type=float, default=(1.0, 4.0, 1.0),
                         help='coefficients of KL decomposition (a, b, c)')
-    parser.add_argument('--epochs', type=int, default=50, help='epochs of train (default: 50)')
-    parser.add_argument('--batch_size', type=int, default=256, help='batch size for model training (default: 256)')
-    parser.add_argument('--seed', type=int, default=42, help='seed for reproducibility (default: 42)')
-    parser.add_argument('--latent_dim', type=int, default=16, help='dimension of the latent vector space (default: 16)')
-    parser.add_argument('--wandb_mode', type=str, default='online', help='Disable wandb tracking (default: online)')
+    parser.add_argument('-e', '--epochs', type=int, default=100, help='epochs of train (default: 50)')
+    parser.add_argument('-b', '--batch_size', type=int, default=256, help='batch size for model training (default: 256)')
+    parser.add_argument('-s', '--seed', type=int, default=42, help='seed for reproducibility (default: 42)')
+    parser.add_argument('-ld', '--latent_dim', type=int, default=16, help='dimension of the latent vector space (default: 16)')
+    parser.add_argument('-w', '--wandb_mode', type=str, default='online', help='Disable wandb tracking (default: online)')
 
     args = parser.parse_args()
     main(args)
