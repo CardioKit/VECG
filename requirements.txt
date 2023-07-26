@@ -1,6 +1,7 @@
-numpy
-tensorflow
+numpy~=1.24.3
+tensorflow~=2.13.0
 tensorflow_datasets
-wandb
-scikit-learn
+wandb~=0.15.6.dev1
+scikit-learn~=1.2.2
 wfdb
+matplotlib~=3.7.1
