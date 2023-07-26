@@ -21,7 +21,7 @@ class KLCoefficientScheduler(tf.keras.callbacks.Callback):
 
 class LatentVectorSpaceSnapshot(tf.keras.callbacks.Callback):
 
-    def __init__(self, data, labelling, period=1):
+    def __init__(self, data, labelling, period=10):
         super(LatentVectorSpaceSnapshot, self).__init__()
         self.data = data
         self.labelling = labelling
@@ -50,7 +50,7 @@ class NearestNeighbourPerformance(tf.keras.callbacks.Callback):
 
 
 class ReconstructionPlot(tf.keras.callbacks.Callback):
-    def __init__(self, data, period=1):
+    def __init__(self, data, period=10):
         super(ReconstructionPlot, self).__init__()
         self.data = data
         self.n = len(data)
