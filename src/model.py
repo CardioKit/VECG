@@ -1,8 +1,5 @@
 import math
-
-import numpy as np
 import tensorflow as tf
-
 
 class Encoder(tf.keras.Model):
     def __init__(self, latent_dim):
@@ -10,19 +7,18 @@ class Encoder(tf.keras.Model):
         self.latent_dim = latent_dim
 
         self.encoder_inputs = tf.keras.Input(shape=(500,))
-        self.x = tf.keras.layers.Dense(500, activation='relu')(self.encoder_inputs)
+        self.x = tf.keras.layers.Dense(500, activation='elu')(self.encoder_inputs)
         self.x = tf.keras.layers.Reshape((500, 1))(self.x)
-        self.x = tf.keras.layers.Conv1D(1024, 2, activation='relu')(self.x)
-        self.x = tf.keras.layers.MaxPool1D(2)(self.x)
-        self.x = tf.keras.layers.Conv1D(512, 2, activation='relu')(self.x)
-        self.x = tf.keras.layers.MaxPool1D(2)(self.x)
-        self.x = tf.keras.layers.Conv1D(128, 5, activation='relu')(self.x)
-        self.x = tf.keras.layers.MaxPool1D(5)(self.x)
-        self.x = tf.keras.layers.Conv1D(32, 5, activation='relu')(self.x)
-        self.x = tf.keras.layers.MaxPool1D(5)(self.x)
+        self.x = tf.keras.layers.Conv1D(1024, 5, 5, activation='elu')(self.x)
+        self.x = tf.keras.layers.BatchNormalization()(self.x)
+        self.x = tf.keras.layers.Conv1D(512, 5, 5, activation='elu')(self.x)
+        self.x = tf.keras.layers.BatchNormalization()(self.x)
+        self.x = tf.keras.layers.Conv1D(128, 2, 2, activation='elu')(self.x)
+        self.x = tf.keras.layers.BatchNormalization()(self.x)
+        self.x = tf.keras.layers.Conv1D(64, 2, 2, activation='elu')(self.x)
+        self.x = tf.keras.layers.BatchNormalization()(self.x)
         self.x = tf.keras.layers.Flatten()(self.x)
-        self.x = tf.keras.layers.Dense(64, activation='relu')(self.x)
-        self.x = tf.keras.layers.Dense(32, activation='relu')(self.x)
+        self.x = tf.keras.layers.Dense(64, activation='sigmoid', kernel_regularizer=tf.keras.regularizers.L2(l2=1e-4))(self.x)
         self.z_mean = tf.keras.layers.Dense(latent_dim, name="z_mean")(self.x)
         self.z_log_var = tf.keras.layers.Dense(latent_dim, name="z_log_var")(self.x)
 
@@ -43,17 +39,12 @@ class Decoder(tf.keras.Model):
         self.latent_dim = latent_dim
 
         self.latent_inputs = tf.keras.Input(shape=(latent_dim,))
-        self.x = tf.keras.layers.Dense(32, activation='relu')(self.latent_inputs)
-        self.x = tf.keras.layers.Dense(64, activation='relu')(self.x)
+        self.x = tf.keras.layers.Dense(64, activation='elu', kernel_regularizer=tf.keras.regularizers.L2(l2=1e-4))(self.latent_inputs)
         self.x = tf.keras.layers.Reshape((2, 32))(self.x)
-        self.x = tf.keras.layers.Conv1DTranspose(filters=1024, kernel_size=2, strides=2, padding='same',
-                                                 activation='relu')(self.x)
-        self.x = tf.keras.layers.Conv1DTranspose(filters=512, kernel_size=5, strides=5, padding='same',
-                                                 activation='relu')(self.x)
-        self.x = tf.keras.layers.Conv1DTranspose(filters=128, kernel_size=5, strides=5, padding='same',
-                                                 activation='relu')(self.x)
-        self.x = tf.keras.layers.Conv1DTranspose(filters=1, kernel_size=5, strides=5, padding='same',
-                                                 activation='relu')(self.x)
+        self.x = tf.keras.layers.Conv1DTranspose(filters=1024, kernel_size=2, strides=2, padding='same', activation='elu')(self.x)
+        self.x = tf.keras.layers.Conv1DTranspose(filters=256, kernel_size=5, strides=5, padding='same', activation='elu')(self.x)
+        self.x = tf.keras.layers.Conv1DTranspose(filters=64, kernel_size=5, strides=5, padding='same', activation='elu')(self.x)
+        self.x = tf.keras.layers.Conv1DTranspose(filters=1, kernel_size=5, strides=5, padding='same', activation='elu')(self.x)
         self.decoder_outputs = tf.keras.layers.Reshape((500,))(self.x)
 
         self.decoder = tf.keras.Model(self.latent_inputs, self.decoder_outputs, name="decoder")
