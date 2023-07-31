@@ -27,6 +27,7 @@ class Encoder(tf.keras.Model):
     def get_config(self):
         config = super().get_config()
         config['latent_dim'] = self.latent_dim
+        config['summary'] = self.summary()
         return config
 
     def call(self, inputs):
@@ -42,8 +43,8 @@ class Decoder(tf.keras.Model):
         self.x = tf.keras.layers.Dense(64, activation='elu', kernel_regularizer=tf.keras.regularizers.L2(l2=1e-4))(self.latent_inputs)
         self.x = tf.keras.layers.Reshape((2, 32))(self.x)
         self.x = tf.keras.layers.Conv1DTranspose(filters=1024, kernel_size=2, strides=2, padding='same', activation='elu')(self.x)
-        self.x = tf.keras.layers.Conv1DTranspose(filters=256, kernel_size=5, strides=5, padding='same', activation='elu')(self.x)
-        self.x = tf.keras.layers.Conv1DTranspose(filters=64, kernel_size=5, strides=5, padding='same', activation='elu')(self.x)
+        self.x = tf.keras.layers.Conv1DTranspose(filters=512, kernel_size=5, strides=5, padding='same', activation='elu')(self.x)
+        self.x = tf.keras.layers.Conv1DTranspose(filters=128, kernel_size=5, strides=5, padding='same', activation='elu')(self.x)
         self.x = tf.keras.layers.Conv1DTranspose(filters=1, kernel_size=5, strides=5, padding='same', activation='elu')(self.x)
         self.decoder_outputs = tf.keras.layers.Reshape((500,))(self.x)
 
@@ -52,6 +53,7 @@ class Decoder(tf.keras.Model):
     def get_config(self):
         config = super().get_config()
         config['latent_dim'] = self.latent_dim
+        config['summary'] = self.summary()
         return config
 
     def call(self, inputs):
@@ -69,7 +71,7 @@ class Sampling(tf.keras.layers.Layer):
 
 
 class TCVAE(tf.keras.Model):
-    def __init__(self, encoder, decoder, size_dataset, mss=True, coefficients=(1.0, 1.0, 1.0), **kwargs):
+    def __init__(self, encoder, decoder, size_dataset, mss=True, coefficients=(1.0, 4.0, 1.0), **kwargs):
         super().__init__(**kwargs)
 
         self.encoder = encoder
@@ -99,6 +101,7 @@ class TCVAE(tf.keras.Model):
         config['alpha'] = self.alpha_.numpy()
         config['beta'] = self.beta_.numpy()
         config['gamma'] = self.gamma_.numpy()
+        config['summary'] = self.summary()
         return config
 
     @property

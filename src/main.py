@@ -35,7 +35,7 @@ def main(arguments):
     tf.random.set_seed(arguments.seed)
     start_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     model_path = arguments.path_results + '/model/best_vae_' + start_time
-    wandb.init(project='vecg', dir=arguments.path_results, mode=arguments.wandb_mode, config=arguments)
+    wandb.init(project=arguments.wandb_project, dir=arguments.path_results, mode=arguments.wandb_mode, config=arguments)
     wandb_logger = logging.getLogger("wandb")
     wandb_logger.setLevel(logging.ERROR)
 
@@ -94,6 +94,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--seed', type=int, default=42, help='seed for reproducibility (default: 42)')
     parser.add_argument('-ld', '--latent_dim', type=int, default=16, help='dimension of the latent vector space (default: 16)')
     parser.add_argument('-w', '--wandb_mode', type=str, default='online', help='Disable wandb tracking (default: online)')
+    parser.add_argument('-p', '--wandb_project', type=str, default='vecg', help='Wandb project name (default: vecg)')
 
     args = parser.parse_args()
     main(args)
