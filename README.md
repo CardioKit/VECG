@@ -50,23 +50,14 @@ The main file supports several optional parameters:
 ```
 options:
   -h, --help            show this help message and exit
-  -r PATH_RESULTS, --path_results PATH_RESULTS
-                        location to save results (default: ../results)
-  -d DATASET, --dataset DATASET
-                        choose tensorflow dataset (default: zheng)
-  -l LABEL, --label LABEL
-                        choose a labelling (default: quality)
-  -c COEFFICIENTS COEFFICIENTS COEFFICIENTS, --coefficients COEFFICIENTS COEFFICIENTS COEFFICIENTS
-                        coefficients of KL decomposition (a, b, c)
-  -e EPOCHS, --epochs EPOCHS
-                        epochs of train (default: 50)
-  -b BATCH_SIZE, --batch_size BATCH_SIZE
-                        batch size for model training (default: 256)
-  -s SEED, --seed SEED  seed for reproducibility (default: 42)
-  -ld LATENT_DIM, --latent_dim LATENT_DIM
-                        dimension of the latent vector space (default: 16)
-  -w WANDB_MODE, --wandb_mode WANDB_MODE
-                        Disable wandb tracking (default: online)
-  -p WANDB_PROJECT, --wandb_project WANDB_PROJECT
-                        Wandb project name (default: vecg)
+  -r, --path_results    location to save results (default: ../results)
+  -d, --dataset         choose tensorflow dataset (default: zheng)
+  -l, --label           choose a labelling (default: quality)
+  -c, --coefficients    coefficients of KL decomposition (a, b, c)
+  -e, --epochs          epochs of train (default: 50)
+  -b, --batch_size      batch size for model training (default: 256)
+  -s, --seed            seed for reproducibility (default: 42)
+  -ld, --latent_dim     dimension of the latent vector space (default: 16)
+  -w, --wandb_mode      Disable wandb tracking (default: online)
+  -p, --wandb_project   Wandb project name (default: vecg)
 ```
