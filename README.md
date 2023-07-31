@@ -47,9 +47,26 @@ python main.py
 ```
 The main file supports several optional parameters:
 
-- **--path_results**: Specify the location to save the results (default: ../results).
-- **--epochs**: Set the number of training epochs (default: 100).
-- **--batch_size**: Specify the batch size for model training (default: 256).
-- **--seed**: Set the seed for reproducibility (default: 42).
-- **--latent_dim**: Set the dimension of the latent vector space (default: 16).
-Adjust these parameters according to your requirements.
+```
+options:
+  -h, --help            show this help message and exit
+  -r PATH_RESULTS, --path_results PATH_RESULTS
+                        location to save results (default: ../results)
+  -d DATASET, --dataset DATASET
+                        choose tensorflow dataset (default: zheng)
+  -l LABEL, --label LABEL
+                        choose a labelling (default: quality)
+  -c COEFFICIENTS COEFFICIENTS COEFFICIENTS, --coefficients COEFFICIENTS COEFFICIENTS COEFFICIENTS
+                        coefficients of KL decomposition (a, b, c)
+  -e EPOCHS, --epochs EPOCHS
+                        epochs of train (default: 50)
+  -b BATCH_SIZE, --batch_size BATCH_SIZE
+                        batch size for model training (default: 256)
+  -s SEED, --seed SEED  seed for reproducibility (default: 42)
+  -ld LATENT_DIM, --latent_dim LATENT_DIM
+                        dimension of the latent vector space (default: 16)
+  -w WANDB_MODE, --wandb_mode WANDB_MODE
+                        Disable wandb tracking (default: online)
+  -p WANDB_PROJECT, --wandb_project WANDB_PROJECT
+                        Wandb project name (default: vecg)
+```
