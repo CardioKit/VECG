@@ -156,7 +156,7 @@ class TCVAE(tf.keras.Model):
         return tf.reduce_mean(tf.keras.losses.mean_absolute_error(data, reconstruction))
 
     def gaussian_log_density(self, samples, mean, log_var):
-        # source: https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/unsupervised/vae.py#L382
+        # source: https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/unsupervised/vae.py#L374
         pi = tf.constant(math.pi)
         normalization = tf.math.log(2. * pi)
         inv_sigma = tf.exp(-log_var)
@@ -185,8 +185,19 @@ class TCVAE(tf.keras.Model):
         size_batch = tf.shape(x)[0]
         recon_loss = self.reconstruction_loss(x, reconstruction)
 
-        log_q_z_given_x = tf.cast(tf.reduce_sum(self.gaussian_log_density(z, mu, log_var), axis=-1, keepdims=False),
-                                  tf.float64)
+
+
+        log_q_z_given_x = tf.cast(
+            tf.reduce_sum(
+                self.gaussian_log_density(tf.expand_dims(z,1), tf.expand_dims(mu,1), tf.expand_dims(log_var,1)),
+                axis=-1,
+                keepdims=False,
+            ),
+            tf.float64,
+        )
+
+        #log_q_z_given_x = tf.cast(tf.reduce_sum(self.gaussian_log_density(z, mu, log_var), axis=-1, keepdims=False),
+        #                          tf.float64)
         log_qz_prob = tf.cast(
             self.gaussian_log_density(tf.expand_dims(z, 1), tf.expand_dims(mu, 0), tf.expand_dims(log_var, 0)),
             tf.float64)
