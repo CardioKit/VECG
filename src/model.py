@@ -160,7 +160,8 @@ class TCVAE(tf.keras.Model):
         pi = tf.constant(math.pi)
         normalization = tf.math.log(2. * pi)
         inv_sigma = tf.exp(-log_var)
-        tmp = (samples - mean)
+
+        tmp = (samples - mean) # x - mu
         return -0.5 * (tmp * tmp * inv_sigma + log_var + normalization)
 
     def log_importance_weight_matrix(self, batch_size, dataset_size):
@@ -185,51 +186,62 @@ class TCVAE(tf.keras.Model):
         size_batch = tf.shape(x)[0]
         recon_loss = self.reconstruction_loss(x, reconstruction)
 
-
-
+        '''
         log_q_z_given_x = tf.cast(
-            tf.reduce_sum(
-                self.gaussian_log_density(tf.expand_dims(z,1), tf.expand_dims(mu,1), tf.expand_dims(log_var,1)),
-                axis=-1,
-                keepdims=False,
+            tf.reduce_sum(self.gaussian_log_density(z, mu, log_var), axis=-1, keepdims=False),
+            tf.float64,
+        )
+
+        log_qz_prob = gaussian_log_density(
+            tf.expand_dims(z, 1), tf.expand_dims(z_mean, 0),
+            tf.expand_dims(z_logvar, 0))
+
+        log_qz_prob = tf.cast(
+            self.gaussian_log_density(
+                tf.expand_dims(z, 1),
+                tf.expand_dims(mu, 0),
+                tf.expand_dims(log_var, 0),
             ),
             tf.float64,
         )
 
-        #log_q_z_given_x = tf.cast(tf.reduce_sum(self.gaussian_log_density(z, mu, log_var), axis=-1, keepdims=False),
-        #                          tf.float64)
-        log_qz_prob = tf.cast(
-            self.gaussian_log_density(tf.expand_dims(z, 1), tf.expand_dims(mu, 0), tf.expand_dims(log_var, 0)),
-            tf.float64)
         log_prior = tf.cast(
-            tf.reduce_sum(self.gaussian_log_density(z, tf.zeros_like(z), tf.ones_like(z)), axis=1, keepdims=False),
-            tf.float64)
+            tf.reduce_sum(
+                self.gaussian_log_density(z, tf.zeros_like(z), tf.ones_like(z)),
+                axis=1,
+                keepdims=False),
+            tf.float64,
+        )
 
-        if self.mss:
-            logiw_mat = tf.cast(self.log_importance_weight_matrix(size_batch, size_dataset), tf.float64)
-            log_qz = tf.reduce_logsumexp(logiw_mat + tf.reduce_sum(log_qz_prob, axis=-1, keepdims=False), axis=-1,
-                                         keepdims=False)
-            log_qz_product = tf.reduce_sum(
-                tf.reduce_logsumexp(
-                    tf.reshape(logiw_mat, shape=(tf.shape(z)[0], tf.shape(z)[0], -1)) + log_qz_prob,
-                    axis=1,
-                    keepdims=False),
-                axis=-1, keepdims=False
-            )
+        #if self.mss:
+        logiw_mat = tf.cast(self.log_importance_weight_matrix(size_batch, size_dataset), tf.float64)
+        log_qz = tf.reduce_logsumexp(
+            tf.reduce_sum(log_qz_prob, axis=2, keepdims=False), # + logiw_mat ,
+            axis=1,
+            keepdims=False,
+        )
 
-        else:
-            product = tf.shape(z)[0] * size_dataset
-            log_tensor = tf.math.log(tf.cast(product, dtype=z.dtype))
-            log_qz = tf.reduce_logsumexp(tf.reduce_sum(log_qz_prob, axis=2, keepdims=False), axis=1,
-                                         keepdims=False) - log_tensor
-            log_qz_product = tf.reduce_sum(tf.reduce_logsumexp(log_qz_prob, axis=1, keepdims=False) - log_tensor,
-                                           axis=1, keepdims=False)
+        log_qz_product = tf.reduce_sum(
+            tf.reduce_logsumexp(
+                log_qz_prob, # + tf.reshape(logiw_mat, shape=(tf.shape(z)[0], tf.shape(z)[0], -1)),
+                axis=1,
+                keepdims=False,
+            ),
+            axis=1,
+            keepdims=False,
+        )
 
         mutual_info_loss = tf.cast(tf.reduce_mean(log_q_z_given_x - log_qz), tf.float32)
         tc_loss = tf.cast(tf.reduce_mean(log_qz - log_qz_product), tf.float32)
         dimension_wise_kl = tf.cast(tf.reduce_mean(log_qz_product - log_prior), tf.float32)
-
+        
         return recon_loss, mutual_info_loss, tc_loss, dimension_wise_kl
+        '''
+
+        kl_loss = -0.5 * (1 + log_var - tf.square(mu) - tf.exp(log_var))
+        kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
+
+        return recon_loss, 0, kl_loss, 0
 
     @tf.function
     def train_step(self, data):
