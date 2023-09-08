@@ -7,8 +7,7 @@ class Encoder(tf.keras.Model):
         self.latent_dim = latent_dim
 
         self.encoder_inputs = tf.keras.Input(shape=(500,))
-        self.x = tf.keras.layers.Dense(500, activation='elu')(self.encoder_inputs)
-        self.x = tf.keras.layers.Reshape((500, 1))(self.x)
+        self.x = tf.keras.layers.Reshape((500, 1))(self.encoder_inputs)
         self.x = tf.keras.layers.Conv1D(1024, 5, 5, activation='elu')(self.x)
         self.x = tf.keras.layers.BatchNormalization()(self.x)
         self.x = tf.keras.layers.Conv1D(512, 5, 5, activation='elu')(self.x)
@@ -20,7 +19,7 @@ class Encoder(tf.keras.Model):
         self.x = tf.keras.layers.Flatten()(self.x)
         self.x = tf.keras.layers.Dense(64, activation='sigmoid', kernel_regularizer=tf.keras.regularizers.L2(l2=1e-4))(self.x)
         self.z_mean = tf.keras.layers.Dense(latent_dim, name="z_mean")(self.x)
-        self.z_log_var = tf.keras.layers.Dense(latent_dim, name="z_log_var")(self.x)
+        self.z_log_var = tf.keras.layers.Dense(latent_dim, name="z_log_var", activation='softplus')(self.x)
 
         self.encoder = tf.keras.Model(self.encoder_inputs, [self.z_mean, self.z_log_var], name="encoder")
 
