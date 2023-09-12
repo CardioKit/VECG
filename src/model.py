@@ -248,17 +248,18 @@ class TCVAE(tf.keras.Model):
     def loss_function(self, reconstruction, x, mu, log_var, z, size_dataset):
 
         size_batch = tf.shape(x)[0]
-        recon_loss = 0 #self.reconstruction_loss(x, reconstruction)
+        recon_loss = self.reconstruction_loss(x, reconstruction)
 
-        '''
         log_q_z_given_x = tf.cast(
             tf.reduce_sum(self.gaussian_log_density(z, mu, log_var), axis=-1, keepdims=False),
             tf.float64,
         )
 
+        '''
         log_qz_prob = gaussian_log_density(
             tf.expand_dims(z, 1), tf.expand_dims(z_mean, 0),
             tf.expand_dims(z_logvar, 0))
+        '''
 
         log_qz_prob = tf.cast(
             self.gaussian_log_density(
@@ -287,7 +288,7 @@ class TCVAE(tf.keras.Model):
 
         log_qz_product = tf.reduce_sum(
             tf.reduce_logsumexp(
-                log_qz_prob, # + tf.reshape(logiw_mat, shape=(tf.shape(z)[0], tf.shape(z)[0], -1)),
+                log_qz_prob + tf.reshape(logiw_mat, shape=(tf.shape(z)[0], tf.shape(z)[0], -1)),
                 axis=1,
                 keepdims=False,
             ),
@@ -300,12 +301,6 @@ class TCVAE(tf.keras.Model):
         dimension_wise_kl = tf.cast(tf.reduce_mean(log_qz_product - log_prior), tf.float32)
         
         return recon_loss, mutual_info_loss, tc_loss, dimension_wise_kl
-        '''
-
-        kl_loss = -0.5 * (1 + log_var - tf.square(mu) - tf.exp(log_var))
-        kl_loss = tf.reduce_mean(tf.reduce_sum(kl_loss, axis=1))
-
-        return recon_loss, 0, kl_loss, 0
 
     @tf.function
     def train_step(self, data):
@@ -316,7 +311,7 @@ class TCVAE(tf.keras.Model):
                 reconstruction, data, z_mean, z_log_var, z, self.size_dataset,
             )
             kl_loss = self.alpha_ * mutual_info_loss + self.beta_ * tc_loss + self.gamma_ * dimension_wise_kl
-            total_loss = reconstruction_loss + kl_loss
+            total_loss = tf.cast(reconstruction_loss, tf.float32) + tf.cast(kl_loss, tf.float32)
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
@@ -338,7 +333,7 @@ class TCVAE(tf.keras.Model):
     @tf.function
     def test_step(self, data):
         z_mean, z_log_var, z = self.encode(data)
-        reconstruction = 0 #self.decode(z)
+        reconstruction = self.decode(z)
         reconstruction_loss, mutual_info_loss, tc_loss, dimension_wise_kl = self.loss_function(
             reconstruction, data, z_mean, z_log_var, z, self.size_dataset,
         )
