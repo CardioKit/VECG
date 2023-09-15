@@ -1,64 +1,38 @@
 import math
 import tensorflow as tf
-import tensorflow_addons as tfa
-
-class AdaptiveMaxPooling1D(tf.keras.layers.Layer):
-    def __init__(self, output_size, **kwargs):
-        super(AdaptiveMaxPooling1D, self).__init__(**kwargs)
-        self.output_size = output_size
-
-    def call(self, inputs):
-        input_shape = tf.shape(inputs)
-        length = input_shape[1]
-
-        # Calculate the pool size
-        pool_size = length // self.output_size
-
-        # Perform the max pooling
-        x = tf.keras.layers.MaxPooling1D(pool_size=pool_size)(inputs)
-        return x
-
-    def compute_output_shape(self, input_shape):
-        return (input_shape[0], self.output_size, input_shape[-1])
+import numpy as np
 
 class Encoder(tf.keras.Model):
 
-    def conv_block_enc(self, input, filters, kernel_size, dilation_rate):
-        forward = tfa.layers.WeightNormalization(
-            tf.keras.layers.Conv1D(filters, kernel_size, padding='causal', dilation_rate=dilation_rate)
-        )(input)
+    def conv_block_enc(self, input, filters, kernel_size, dilation_rate, seed=42):
+        initializer = tf.keras.initializers.Orthogonal(seed=seed)
+        forward = tf.keras.layers.Conv1D(filters, kernel_size, padding='causal', dilation_rate=dilation_rate,kernel_initializer = initializer)(input)
         forward = tf.keras.layers.LeakyReLU()(forward)
-        forward = tfa.layers.WeightNormalization(
-            tf.keras.layers.Conv1D(filters, kernel_size, padding='causal', dilation_rate=dilation_rate)
-        )(forward)
+        forward = tf.keras.layers.Conv1D(filters, kernel_size, padding='causal', dilation_rate=dilation_rate ,kernel_initializer = initializer)(forward)
         forward = tf.keras.layers.LeakyReLU()(forward)
         return forward
 
     def __init__(self, latent_dim):
         super(Encoder, self).__init__()
         self.latent_dim = latent_dim
-
+        low = 0
+        high = 1000000
 
         self.encoder_inputs = tf.keras.Input(shape=(500,))
         self.x = tf.keras.layers.Reshape((500, 1))(self.encoder_inputs)
-
-        self.x = self.conv_block_enc(self.x, 128, 5, 1)
-        self.x = self.conv_block_enc(self.x, 128, 5, 2)
-        self.x = self.conv_block_enc(self.x, 128, 5, 4)
-        self.x = self.conv_block_enc(self.x, 128, 5, 8)
-        self.x = self.conv_block_enc(self.x, 128, 5, 16)
-        self.x = self.conv_block_enc(self.x, 128, 5, 32)
-        self.x = self.conv_block_enc(self.x, 128, 5, 64)
-        self.x = self.conv_block_enc(self.x, 64, 5, 128)
-
+        self.x = self.conv_block_enc(self.x, 32, 5, 1, seed=np.random.randint(low, high))
+        self.x = self.conv_block_enc(self.x, 32, 5, 2, seed=np.random.randint(low, high))
+        self.x = self.conv_block_enc(self.x, 32, 5, 4, seed=np.random.randint(low, high))
+        self.x = self.conv_block_enc(self.x, 32, 5, 8, seed=np.random.randint(low, high))
+        self.x = self.conv_block_enc(self.x, 32, 5, 16, seed=np.random.randint(low, high))
+        self.x = self.conv_block_enc(self.x, 16, 5, 32, seed=np.random.randint(low, high))
         self.x = tf.keras.layers.MaxPooling1D()(self.x)
+
         self.x = tf.keras.layers.Flatten()(self.x)
-        #self.x = tf.keras.layers.Dense(64)(self.x)
+        self.x = tf.keras.layers.Dense(64)(self.x)
 
         self.z_mean = tf.keras.layers.Dense(latent_dim, name="z_mean")(self.x)
         self.z_log_var = tf.keras.layers.Dense(latent_dim, name="z_log_var", activation='softplus')(self.x)
-        #self.z_log_var = tf.keras.layers.add([self.z_log_var, tf.constant(0.001)])
-        #self.z_log_var = tf.keras.activations.softplus(0.3)(self.z_log_var)
 
         self.encoder = tf.keras.Model(self.encoder_inputs, [self.z_mean, self.z_log_var], name="encoder")
 
@@ -74,42 +48,32 @@ class Encoder(tf.keras.Model):
 
 class Decoder(tf.keras.Model):
 
-    def conv_block_dec(self, input, filters, kernel_size, dilation_rate):
-        '''
-        forward = tfa.layers.WeightNormalization(
-            tf.keras.layers.Conv1DTranspose(filters, kernel_size, padding='valid', dilation_rate=dilation_rate)
-        )(input)
+    def conv_block_dec(self, input, filters, kernel_size, dilation_rate, seed=42):
+        initializer = tf.keras.initializers.Orthogonal(seed=seed)
+        forward = tf.keras.layers.Conv1DTranspose(filters, kernel_size, padding='same', dilation_rate=dilation_rate,kernel_initializer = initializer)(input)
         forward = tf.keras.layers.LeakyReLU()(forward)
-        forward = tfa.layers.WeightNormalization(
-            tf.keras.layers.Conv1DTranspose(filters, kernel_size, padding='valid', dilation_rate=dilation_rate)
-        )(forward)
-        '''
-        forward = tf.keras.layers.Conv1D(filters, kernel_size, padding='causal', dilation_rate=dilation_rate)(input)
+        forward = tf.keras.layers.Conv1DTranspose(filters, kernel_size, padding='same', dilation_rate=dilation_rate,kernel_initializer = initializer)(forward)
         forward = tf.keras.layers.LeakyReLU()(forward)
-        forward = tf.keras.layers.Conv1D(filters, kernel_size, padding='causal', dilation_rate=dilation_rate)(forward)
-        forward = tf.keras.layers.LeakyReLU()(forward)
+
         return forward
 
     def __init__(self, latent_dim):
         super(Decoder, self).__init__()
         self.latent_dim = latent_dim
+        low = 0
+        high = 1000000
 
         self.latent_inputs = tf.keras.Input(shape=(latent_dim,))
         self.x = tf.keras.layers.Dense(64)(self.latent_inputs)
-        self.x = tf.keras.layers.Dense(64*500)(self.x)
-        self.x = tf.keras.layers.Reshape((64, 500))(self.x)
-
-        self.x = self.conv_block_dec(self.x, 128, 5, 128)
-        self.x = self.conv_block_dec(self.x, 128, 5, 64)
-        self.x = self.conv_block_dec(self.x, 128, 5, 32)
-        self.x = self.conv_block_dec(self.x, 128, 5, 16)
-        self.x = self.conv_block_dec(self.x, 128, 5, 8)
-        self.x = self.conv_block_dec(self.x, 128, 5, 4)
-        self.x = self.conv_block_dec(self.x, 128, 5, 2)
-        self.x = self.conv_block_dec(self.x, 1, 5, 1)
-
+        self.x = tf.keras.layers.Dense(32*500)(self.x)
+        self.x = tf.keras.layers.Reshape((500, 32))(self.x)
+        self.x = self.conv_block_dec(self.x, 32, 5, 32, seed=np.random.randint(low, high))
+        self.x = self.conv_block_dec(self.x, 32, 5, 16, seed=np.random.randint(low, high))
+        self.x = self.conv_block_dec(self.x, 32, 5, 8, seed=np.random.randint(low, high))
+        self.x = self.conv_block_dec(self.x, 32, 5, 4, seed=np.random.randint(low, high))
+        self.x = self.conv_block_dec(self.x, 32, 5, 2, seed=np.random.randint(low, high))
+        self.x = self.conv_block_dec(self.x, 1, 5, 1, seed=np.random.randint(low, high))
         self.x = tf.keras.layers.Flatten()(self.x)
-        self.x = tf.keras.layers.Dense(500)(self.x)
         self.decoder_outputs = tf.keras.layers.Reshape((500,))(self.x)
 
         self.decoder = tf.keras.Model(self.latent_inputs, self.decoder_outputs, name="decoder")
@@ -255,12 +219,6 @@ class TCVAE(tf.keras.Model):
             tf.float64,
         )
 
-        '''
-        log_qz_prob = gaussian_log_density(
-            tf.expand_dims(z, 1), tf.expand_dims(z_mean, 0),
-            tf.expand_dims(z_logvar, 0))
-        '''
-
         log_qz_prob = tf.cast(
             self.gaussian_log_density(
                 tf.expand_dims(z, 1),
@@ -281,7 +239,7 @@ class TCVAE(tf.keras.Model):
         #if self.mss:
         logiw_mat = tf.cast(self.log_importance_weight_matrix(size_batch, size_dataset), tf.float64)
         log_qz = tf.reduce_logsumexp(
-            tf.reduce_sum(log_qz_prob, axis=2, keepdims=False), # + logiw_mat ,
+            tf.reduce_sum(log_qz_prob, axis=2, keepdims=False) + logiw_mat,
             axis=1,
             keepdims=False,
         )
@@ -306,7 +264,7 @@ class TCVAE(tf.keras.Model):
     def train_step(self, data):
         with tf.GradientTape() as tape:
             z_mean, z_log_var, z = self.encode(data)
-            reconstruction = 0 # self.decode(z)
+            reconstruction = self.decode(z)
             reconstruction_loss, mutual_info_loss, tc_loss, dimension_wise_kl = self.loss_function(
                 reconstruction, data, z_mean, z_log_var, z, self.size_dataset,
             )

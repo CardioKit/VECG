@@ -80,7 +80,6 @@ def main(arguments):
         verbose=1,
     )
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='VECG', description='Representational Learning of ECG using TC-VAE')
     parser.add_argument('-r', '--path_results', type=str, default='../results',
