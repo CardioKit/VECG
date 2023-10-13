@@ -73,3 +73,49 @@ class ReconstructionPlot(tf.keras.callbacks.Callback):
             wandb.log({"reconstruction": wandb.Image(plt)})
 
             plt.close()
+
+
+class CollapseCallback(tf.keras.callbacks.Callback):
+    '''
+    CRED: As suggested in https://arxiv.org/pdf/1901.05534.pdf
+    CRED: https://github.com/jxhe/vae-lagging-encoder/blob/cdc4eb9d9599a026bf277db74efc2ba1ec203b15/modules/encoders/encoder.py#L111
+    '''
+
+    def __init__(self, data, aggressive=True):
+        super().__init__()
+        self.aggressive = aggressive
+        self.data = data
+        self.temp = -np.inf
+
+    def on_epoch_begin(self, epoch, logs=None):
+
+        res = self.model.compute_information_gain(self.data)
+        self.aggressive = res >= self.temp
+
+        if self.aggressive:
+            if self.model.decoder.trainable:
+                self.model.decoder.trainable = True #False
+            else:
+                self.model.encoder.trainable = True
+                self.model.decoder.trainable = True #False
+            self.temp = res
+        else:
+            self.model.encoder.trainable = True
+            self.model.decoder.trainable = True
+
+    def on_epoch_end(self, epoch, logs=None):
+
+        res = self.model.compute_information_gain(self.data)
+        self.aggressive = res >= self.temp
+        print(res)
+        print(self.temp)
+        if self.aggressive:
+            if self.model.decoder.trainable:
+                self.model.decoder.trainable = False
+            else:
+                self.model.encoder.trainable = True
+                self.model.decoder.trainable = False
+            self.temp = res
+        else:
+            self.model.encoder.trainable = True
+            self.model.decoder.trainable = True

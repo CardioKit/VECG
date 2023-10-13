@@ -163,3 +163,5 @@ cython_debug/
 results/*
 /artifacts/
 /wandb/
+/results/model/
+/evaluation/
