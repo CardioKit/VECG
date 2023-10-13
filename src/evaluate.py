@@ -1,9 +1,10 @@
 import os
+
+import numpy as np
 import tensorflow_datasets as tfds
 from matplotlib import pyplot as plt
-import seaborn as sns
-import numpy as np
-import pandas as pd
+from sklearn.decomposition import PCA
+
 
 class Evaluate:
 
@@ -70,7 +71,7 @@ class Evaluate:
         plt.savefig(path_eval + 'reconstruction.png')
         plt.close()
 
-    def eval_embedding(self, X, label, path_eval, title=None, xlabel=None, ylabel=None, cmap='viridis', marker_size=10, alpha=0.7):
+    def eval_embedding(self, z, label, path_eval, title=None, xlabel=None, ylabel=None, cmap='viridis', marker_size=10, alpha=0.7):
         """
         Plots an embedding scatter plot.
 
@@ -88,8 +89,9 @@ class Evaluate:
         Returns:
             None
         """
+        pca = PCA(n_components=2).fit_transform(z)
         plt.figure(figsize=(10, 8))
-        plt.scatter(X[:, 0], X[:, 1], s=marker_size, c=label, cmap=cmap, alpha=alpha)
+        plt.scatter(pca[:, 0], pca[:, 1], s=marker_size, c=label, cmap=cmap, alpha=alpha)
 
         if title:
             plt.title(title)
@@ -103,20 +105,23 @@ class Evaluate:
         plt.savefig(path_eval + '.png')
         plt.close()
 
-    def eval_dimensions(self, encoded, dimensions, path_eval, N=1000):
+    def eval_dimensions(self, encoded, dimensions, path_eval, N=100, bound_factor=1.5):
         # ld = self.model.get_config()['encoder']['config']['latent_dim']
         # M = np.zeros((N, ld)).astype(np.float32)
-        M = np.tile(np.array(encoded[0]), (N, 1))
+        mean_enc = np.mean(encoded, axis=0)
+        max_enc = np.max(encoded, axis=0)
+        min_enc = np.min(encoded, axis=0)
+        M = np.tile(mean_enc, (N, 1))
         for dimension in dimensions:
-            center = np.array(encoded[0])[dimension]
-            M[:, dimension] = np.linspace(-1000 + center, 1000 + center, N)
+            bound_up = bound_factor*max_enc[dimension]
+            bound_low = bound_factor*min_enc[dimension]
+            M[:, dimension] = np.linspace(bound_low, bound_up, N)
         res = self.model.decoder.predict(M)
-        df = pd.DataFrame(res.flatten(), columns=['signal'])
-        df['timestamp'] = np.repeat([np.arange(0, 500)], N, axis=0).flatten()
-        df['label'] = np.repeat(np.arange(0, N), 500)
-
-        plt.figure(figsize=(10, 5))
-        sns.lineplot(x="timestamp", y="signal", data=df)
+        mean = np.mean(res, axis=0)
+        std = np.std(res, axis=0)
+        plt.figure(figsize=(15, 5))
+        plt.plot(range(0, len(mean)), mean, 'k-')
+        plt.fill_between(range(0, len(mean)), mean - std, mean + std)
         plt.savefig(path_eval + '.png')
         plt.close()
 
@@ -138,11 +143,14 @@ class Evaluate:
 
         for label in k.keys():
             try:
-                self.eval_embedding(X, k[label], path_eval + 'embedding_' + label)
-            except:
+                self.eval_embedding(z, k[label], path_eval + 'embedding_' + label)
+            except Exception as e:
+                print(e)
                 pass
 
         for dim in range(0, 16):
-            self.eval_dimensions(z, [dim], path_eval + 'dimension_' + str(dim))
-
-        print(self.model.encoder.latent_dim)
+            try:
+                self.eval_dimensions(z, [dim], path_eval + 'dimension_' + str(dim))
+            except Exception as e:
+                print(e)
+                pass

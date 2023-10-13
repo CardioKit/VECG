@@ -80,12 +80,12 @@ def main(arguments):
 
     tc_vae = TCVAE(encoder, decoder, len(data_train[0]), mss=True, coefficients=tuple(arguments.coefficients))
     tc_vae.compile(optimizer=tf.keras.optimizers.legacy.RMSprop())
-    data_sample, label_sample = get_samples(val, n=4096, label=arguments.label)
+    # data_sample, label_sample = get_samples(val, n=4096, label=arguments.label)
 
     callbacks = [
         tf.keras.callbacks.ReduceLROnPlateau(monitor='recon', factor=0.05, patience=10, min_lr=0.000001),
         tf.keras.callbacks.TerminateOnNaN(),
-        # tf.keras.callbacks.ModelCheckpoint(path_model, monitor='val_loss', save_best_only=True),
+        tf.keras.callbacks.ModelCheckpoint(path_model, monitor='val_loss', save_best_only=True),
         # CollapseCallback(data_sample),
         # KLCoefficientScheduler(alpha, beta, gamma),
         # tf.keras.callbacks.CSVLogger(path_epoch_log),
@@ -111,6 +111,7 @@ def main(arguments):
     ev.evaluate('medalcare', 'train', [50, 100, 150, 200])
     ev.evaluate('medalcare', 'test', [50, 100, 150, 200])
     ev.evaluate('synth', 'train', [50, 100, 150, 200])
+    #ev.evaluate('ptb', 'train', [50, 100, 150, 200])
 
 
 if __name__ == '__main__':

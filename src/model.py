@@ -211,7 +211,7 @@ class TCVAE(tf.keras.Model):
         return reconstruction
 
     def reconstruction_loss(self, data, reconstruction):
-        return 10000*tf.reduce_sum(tf.keras.losses.mean_squared_error(data, reconstruction))
+        return 1000*tf.reduce_sum(tf.keras.losses.mean_squared_error(data, reconstruction))
 
     def gaussian_log_density(self, samples, mean, log_var):
         # CRE: https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/unsupervised/vae.py#L374
