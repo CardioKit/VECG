@@ -62,8 +62,8 @@ def main(arguments):
     )
 
     data_val = tfds.load(
-        'synth',
-        split=['train'],
+        'icentia11k',
+        split=['7'],
         shuffle_files=True,
     )
 
@@ -85,7 +85,7 @@ def main(arguments):
     callbacks = [
         tf.keras.callbacks.ReduceLROnPlateau(monitor='recon', factor=0.05, patience=10, min_lr=0.000001),
         tf.keras.callbacks.TerminateOnNaN(),
-        tf.keras.callbacks.ModelCheckpoint(path_model, monitor='val_loss', save_best_only=True),
+        #tf.keras.callbacks.ModelCheckpoint(path_model, monitor='val_loss', save_best_only=True),
         # CollapseCallback(data_sample),
         # KLCoefficientScheduler(alpha, beta, gamma),
         # tf.keras.callbacks.CSVLogger(path_epoch_log),
@@ -100,8 +100,8 @@ def main(arguments):
         data_generator(train),
         steps_per_epoch=len(train),
         epochs=arguments.epochs,
-        validation_data=data_generator(val),
-        validation_steps=len(val),
+        #validation_data=data_generator(val),
+        #validation_steps=len(val),
         callbacks=callbacks,
         verbose=1,
     )
@@ -109,9 +109,20 @@ def main(arguments):
     ev = Evaluate(start_time, tc_vae)
     ev.evaluate('zheng', 'train', [50, 100, 150, 200])
     ev.evaluate('medalcare', 'train', [50, 100, 150, 200])
+    ev.evaluate('medalcare', 'validation', [50, 100, 150, 200])
     ev.evaluate('medalcare', 'test', [50, 100, 150, 200])
     ev.evaluate('synth', 'train', [50, 100, 150, 200])
-    #ev.evaluate('ptb', 'train', [50, 100, 150, 200])
+    ev.evaluate('ptb', 'train', [50, 100, 150, 200])
+
+    tc_vae.fit(
+        data_generator(val),
+        steps_per_epoch=len(val),
+        epochs=100,
+        verbose=1,
+    )
+
+    ev1 = Evaluate(start_time, tc_vae)
+    ev1.evaluate('icentia11k', '4', [50, 100, 150, 200], 10000)
 
 
 if __name__ == '__main__':

@@ -1,10 +1,12 @@
 import os
 
 import numpy as np
+import pandas as pd
 import tensorflow_datasets as tfds
 from matplotlib import pyplot as plt
 from sklearn.decomposition import PCA
-
+from sklearn.manifold import TSNE
+from sklearn.linear_model import LinearRegression
 
 class Evaluate:
 
@@ -15,8 +17,6 @@ class Evaluate:
         self.generate_paths([self.path])
         with open(self.path + "config.txt", "w") as text_file:
             mod_str = str(model.get_config())
-            #enc_str = str(self.model.get_config()['encoder']['config'])
-            #dec_str = str(self.model.get_config()['decoder']['config'])
             text_file.write(mod_str) # + '\n' + enc_str + '\n' + dec_str)
 
 
@@ -71,7 +71,7 @@ class Evaluate:
         plt.savefig(path_eval + 'reconstruction.png')
         plt.close()
 
-    def eval_embedding(self, z, label, path_eval, title=None, xlabel=None, ylabel=None, cmap='viridis', marker_size=10, alpha=0.7):
+    def eval_embedding(self, embedding, label, path_eval, title=None, xlabel=None, ylabel=None, cmap='viridis', marker_size=10, alpha=0.7):
         """
         Plots an embedding scatter plot.
 
@@ -89,9 +89,9 @@ class Evaluate:
         Returns:
             None
         """
-        pca = PCA(n_components=2).fit_transform(z)
+
         plt.figure(figsize=(10, 8))
-        plt.scatter(pca[:, 0], pca[:, 1], s=marker_size, c=label, cmap=cmap, alpha=alpha)
+        plt.scatter(embedding[:, 0], embedding[:, 1], s=marker_size, c=label, cmap=cmap, alpha=alpha)
 
         if title:
             plt.title(title)
@@ -125,32 +125,60 @@ class Evaluate:
         plt.savefig(path_eval + '.png')
         plt.close()
 
-    def evaluate(self, dataset, split, indices):
+    def eval_dimension_interpretation(self, encoded, labels, path):
+        df = pd.DataFrame()
+        #text = 'label,dim,method,score'
+        for label in labels.keys():
+            for dim in range(0, encoded.shape[-1]):
+                try:
+                    reg = LinearRegression().fit(np.array(encoded[:, dim]).reshape(-1, 1), np.array(labels[label])) #.reshape(-1, 1))
+                    score = reg.score(np.array(encoded[:, dim]).reshape(-1, 1), np.array(labels[label])) #.reshape(-1, 1))
+                    df = pd.concat([df, pd.DataFrame({'label': [str(label)], 'dim': [str(dim)], 'method': ['LR'], 'score': [str(score)]})])
+                    #text += str(label) + ',' + str(dim) + ',LR,' + str(score) + '\n'
+                except Exception as e:
+                    df = pd.concat(
+                        [df, pd.DataFrame({'label': [str(label)], 'dim': [str(dim)], 'method': ['LR'], 'score': ['failed']})])
+                    #text += str(label) + ',' + str(dim) + 'LR,failed\n'
+                    pass
+        df.to_csv(path + '.txt')
+        #with open(path + ".txt", "w") as text_file:
+        #    text_file.write(text)
+
+    def evaluate(self, dataset, split, indices, batch_size=None):
 
         path_eval = self.path + dataset + '/' + split + '/'
+
         self.generate_paths([path_eval])
 
         data = tfds.load(dataset)
-        ds = data[split].batch(len(data[split]))
+        if batch_size == None:
+            ds = data[split].batch(len(data[split]))
+        else:
+            ds = data[split].batch(batch_size)
+
         for k in ds.take(1):
             k = k
 
         X = k['ecg']['I']
         z_mean, z_log_var, z = self.model.encode(X)
         reconstruction = self.model.decode(z)
-
         self.eval_reconstruction(X, reconstruction, indices, path_eval)
+
+        embedding_tsne = TSNE(n_components=2, learning_rate='auto', init = 'random', perplexity = 3).fit_transform(z)
+        embedding_pca = PCA(n_components=2).fit_transform(z)
 
         for label in k.keys():
             try:
-                self.eval_embedding(z, k[label], path_eval + 'embedding_' + label)
+                self.eval_embedding(embedding_pca, k[label], path_eval + 'embedding_pca_' + label)
+                self.eval_embedding(embedding_tsne, k[label], path_eval + 'embedding_tsne_' + label)
             except Exception as e:
                 print(e)
                 pass
 
-        for dim in range(0, 16):
+        for dim in range(0, z.shape[-1]):
             try:
                 self.eval_dimensions(z, [dim], path_eval + 'dimension_' + str(dim))
             except Exception as e:
                 print(e)
                 pass
+        self.eval_dimension_interpretation(z, k, path_eval + 'dimension_interpretation')
