@@ -2,96 +2,6 @@ import math
 import numpy as np
 import tensorflow as tf
 
-class Encoder(tf.keras.Model):
-
-    def conv_block_enc(self, input, filters, kernel_size, dilation_rate):
-        low = 0
-        high = 1000000
-        seed = np.random.randint(low, high)
-        initializer = tf.keras.initializers.Orthogonal(seed=seed)
-        forward = tf.keras.layers.Conv1D(filters, kernel_size, padding='causal', dilation_rate=dilation_rate, kernel_initializer=initializer)(input)
-        forward = tf.keras.layers.LeakyReLU()(forward)
-        forward = tf.keras.layers.Conv1D(filters, kernel_size, padding='causal', dilation_rate=dilation_rate, kernel_initializer=initializer)(forward)
-        forward = tf.keras.layers.LeakyReLU()(forward)
-        return forward
-
-    def __init__(self, latent_dim):
-        super(Encoder, self).__init__()
-        self.latent_dim = latent_dim
-
-        self.encoder_inputs = tf.keras.Input(shape=(500,))
-        self.x = tf.keras.layers.Reshape((500, 1))(self.encoder_inputs)
-        self.x = self.conv_block_enc(self.x, 32, 5, 1)
-        self.x = self.conv_block_enc(self.x, 32, 5, 2)
-        self.x = self.conv_block_enc(self.x, 32, 5, 4)
-        self.x = self.conv_block_enc(self.x, 32, 5, 8)
-        self.x = self.conv_block_enc(self.x, 32, 5, 16)
-        self.x = self.conv_block_enc(self.x, 16, 5, 32)
-        self.x = tf.keras.layers.MaxPooling1D()(self.x)
-
-        self.x = tf.keras.layers.Flatten()(self.x)
-        #self.x = tf.keras.layers.Dropout(.4)(self.x)
-        self.x = tf.keras.layers.Dense(64)(self.x)
-        #self.x = tf.keras.layers.Dropout(.4)(self.x)
-        self.z_mean = tf.keras.layers.Dense(latent_dim, name="z_mean")(self.x)
-        self.z_log_var = tf.keras.layers.Dense(latent_dim, name="z_log_var", activation='softplus')(self.x)
-
-        self.encoder = tf.keras.Model(self.encoder_inputs, [self.z_mean, self.z_log_var], name="encoder")
-
-    def get_config(self):
-        config = super().get_config()
-        config['latent_dim'] = self.latent_dim
-        config['summary'] = self.summary()
-        return config
-
-    def call(self, inputs):
-        return self.encoder(inputs)
-
-
-class Decoder(tf.keras.Model):
-
-    def conv_block_dec(self, input, filters, kernel_size, dilation_rate, seed=42):
-        low = 0
-        high = 1000000
-        seed = np.random.randint(low, high)
-        initializer = tf.keras.initializers.Orthogonal(seed=seed)
-        forward = tf.keras.layers.Conv1DTranspose(filters, kernel_size, padding='same', dilation_rate=dilation_rate,kernel_initializer = initializer)(input)
-        forward = tf.keras.layers.LeakyReLU()(forward)
-        forward = tf.keras.layers.Conv1DTranspose(filters, kernel_size, padding='same', dilation_rate=dilation_rate,kernel_initializer = initializer)(forward)
-        forward = tf.keras.layers.LeakyReLU()(forward)
-
-        return forward
-
-    def __init__(self, latent_dim):
-        super(Decoder, self).__init__()
-        self.latent_dim = latent_dim
-
-        self.latent_inputs = tf.keras.Input(shape=(latent_dim,))
-        self.x = tf.keras.layers.Dense(64)(self.latent_inputs)
-        self.x = tf.keras.layers.Dense(32*500)(self.x)
-        self.x = tf.keras.layers.Reshape((500, 32))(self.x)
-        self.x = self.conv_block_dec(self.x, 32, 5, 32)
-        self.x = self.conv_block_dec(self.x, 32, 5, 16)
-        self.x = self.conv_block_dec(self.x, 32, 5, 8)
-        self.x = self.conv_block_dec(self.x, 32, 5, 4)
-        self.x = self.conv_block_dec(self.x, 32, 5, 2)
-        self.x = self.conv_block_dec(self.x, 1, 5, 1)
-        self.x = tf.keras.layers.Flatten()(self.x)
-        #self.x = tf.keras.layers.Dropout(.4)(self.x)
-        self.x = tf.keras.layers.Dense(500)(self.x)
-        self.decoder_outputs = tf.keras.layers.Reshape((500,))(self.x)
-
-        self.decoder = tf.keras.Model(self.latent_inputs, self.decoder_outputs, name="decoder")
-
-    def get_config(self):
-        config = super().get_config()
-        config['latent_dim'] = self.latent_dim
-        config['summary'] = self.summary()
-        return config
-
-    def call(self, inputs):
-        return self.decoder(inputs)
-
 
 class Sampling(tf.keras.layers.Layer):
     """Uses (z_mean, z_log_var) to sample z, the vector encoding a digit."""
@@ -104,16 +14,17 @@ class Sampling(tf.keras.layers.Layer):
 
 
 class TCVAE(tf.keras.Model):
+
     def __init__(self, encoder, decoder, size_dataset, mss=True, coefficients=(1.0, 4.0, 1.0), **kwargs):
         super().__init__(**kwargs)
 
         self.encoder = encoder
         self.decoder = decoder
         self.size_dataset = size_dataset
-        self.alpha_ = tf.Variable(coefficients[0], name="weight_index", trainable=False)
-        self.beta_ = tf.Variable(coefficients[1], name="weight_tc", trainable=False)
-        self.gamma_ = tf.Variable(coefficients[2], name="weight_dimension", trainable=False)
-        self.mss = mss
+        self._alpha = tf.Variable(coefficients[0], name="weight_index", trainable=False)
+        self._beta = tf.Variable(coefficients[1], name="weight_tc", trainable=False)
+        self._gamma = tf.Variable(coefficients[2], name="weight_dimension", trainable=False)
+        self._mss = mss
         self.total_loss_tracker = tf.keras.metrics.Mean(name="total_loss")
         self.reconstruction_loss_tracker = tf.keras.metrics.Mean(name="reconstruction_loss")
         self.mi_loss_tracker = tf.keras.metrics.Mean(name="mi_loss")
@@ -138,9 +49,9 @@ class TCVAE(tf.keras.Model):
         config = super().get_config()
         config['encoder'] = self.encoder
         config['decoder'] = self.decoder
-        config['alpha'] = self.alpha_.numpy()
-        config['beta'] = self.beta_.numpy()
-        config['gamma'] = self.gamma_.numpy()
+        config['alpha'] = self._alpha.numpy()
+        config['beta'] = self._beta.numpy()
+        config['gamma'] = self._gamma.numpy()
         config['summary'] = self.summary()
         return config
 
@@ -156,27 +67,27 @@ class TCVAE(tf.keras.Model):
 
     @property
     def alpha(self):
-        return self.alpha_
+        return self._alpha
 
     @alpha.setter
     def alpha(self, value):
-        self.alpha_.assign(value)
+        self._alpha.assign(value)
 
     @property
     def beta(self):
-        return self.beta_
+        return self._beta
 
     @beta.setter
     def beta(self, value):
-        self.beta_.assign(value)
+        self._beta.assign(value)
 
     @property
     def gamma(self):
-        return self.gamma_
+        return self._gamma
 
     @gamma.setter
     def gamma(self, value):
-        self.gamma_.assign(value)
+        self._gamma.assign(value)
 
     '''
     @property
@@ -210,16 +121,13 @@ class TCVAE(tf.keras.Model):
         reconstruction = self.decode(z_mean)
         return reconstruction
 
-    def reconstruction_loss(self, data, reconstruction):
-        return 1000*tf.reduce_sum(tf.keras.losses.mean_squared_error(data, reconstruction))
-
     def gaussian_log_density(self, samples, mean, log_var):
         # CRE: https://github.com/google-research/disentanglement_lib/blob/master/disentanglement_lib/methods/unsupervised/vae.py#L374
         pi = tf.constant(math.pi)
         normalization = tf.math.log(2. * pi)
         inv_sigma = tf.exp(-log_var)
 
-        tmp = (samples - mean) # x - mu
+        tmp = (samples - mean)
         return -0.5 * (tmp * tmp * inv_sigma + log_var + normalization)
 
     def log_importance_weight_matrix(self, batch_size, dataset_size):
@@ -260,7 +168,8 @@ class TCVAE(tf.keras.Model):
         mu, logvar = tf.expand_dims(mu, 1, name=None), tf.expand_dims(logvar, 1, name=None)
         var = np.exp(logvar)
         dev = z - mu
-        log_density = -0.5 * np.sum((dev ** 2) / var, axis=-1) - 0.5 * (nz * math.log(2 * math.pi) + np.sum(logvar, axis=-1))
+        log_density = -0.5 * np.sum((dev ** 2) / var, axis=-1) - 0.5 * (
+                nz * math.log(2 * math.pi) + np.sum(logvar, axis=-1))
         log_qz = self.log_sum_exp(log_density, dim=1) - math.log(x_batch)
         res = neg_entropy - np.mean(log_qz, axis=-1)
         return res
@@ -268,10 +177,15 @@ class TCVAE(tf.keras.Model):
     def loss_function(self, reconstruction, x, mu, log_var, z, size_dataset):
 
         size_batch = tf.shape(x)[0]
-        recon_loss = self.reconstruction_loss(x, reconstruction)
+        recon_loss = tf.cast(tf.keras.losses.mean_squared_error(x, reconstruction), tf.float32)
 
         log_q_z_given_x = tf.cast(
-            tf.reduce_sum(self.gaussian_log_density(z, mu, log_var), axis=-1, keepdims=False),
+            tf.reduce_sum(self.gaussian_log_density(z, mu, log_var), axis=-1),
+            tf.float64,
+        )
+
+        log_prior = tf.cast(
+            tf.reduce_sum(self.gaussian_log_density(z, tf.zeros_like(z), tf.ones_like(z)), axis=-1),
             tf.float64,
         )
 
@@ -284,47 +198,64 @@ class TCVAE(tf.keras.Model):
             tf.float64,
         )
 
-        log_prior = tf.cast(
-            tf.reduce_sum(
-                self.gaussian_log_density(z, tf.zeros_like(z), tf.ones_like(z)),
-                axis=1,
-                keepdims=False),
-            tf.float64,
+        '''
+        logiw_mat = self._log_importance_weight_matrix(z.shape[0], dataset_size).to(
+            z.device
         )
+        log_q_z = torch.logsumexp(
+            logiw_mat + log_q_batch_perm.sum(dim=-1), dim=-1
+        )  # MMS [B]
+        log_prod_q_z = (
+            torch.logsumexp(
+                logiw_mat.reshape(z.shape[0], z.shape[0], -1) + log_q_batch_perm,
+                dim=1,
+            )
+        ).sum(
+            dim=-1
+        )  # MMS [B]
+        '''
 
-        logiw_mat = tf.cast(self.log_importance_weight_matrix(size_batch, size_dataset), tf.float64)
-        log_qz = tf.reduce_logsumexp(
-            tf.reduce_sum(log_qz_prob, axis=2, keepdims=False) + logiw_mat,
-            axis=1,
-            keepdims=False,
-        )
-
-        log_qz_product = tf.reduce_sum(
-            tf.reduce_logsumexp(
-                log_qz_prob + tf.reshape(logiw_mat, shape=(tf.shape(z)[0], tf.shape(z)[0], -1)),
+        if self._mss:
+            logiw_mat = tf.cast(self.log_importance_weight_matrix(size_batch, size_dataset), tf.float64)
+            log_qz = tf.reduce_logsumexp(
+                tf.reduce_sum(log_qz_prob, axis=2, keepdims=False) + logiw_mat,
                 axis=1,
                 keepdims=False,
-            ),
-            axis=1,
-            keepdims=False,
-        )
+            )
+            log_qz_product = tf.reduce_sum(
+                tf.reduce_logsumexp(log_qz_prob + tf.reshape(logiw_mat, shape=(tf.shape(z)[0], tf.shape(z)[0], -1)),
+                                    axis=1,
+                                    keepdims=False), axis=1, keepdims=False)
+        else:
+            log_qz = tf.reduce_logsumexp(
+                tf.reduce_sum(log_qz_prob, axis=-1, keepdims=False),
+                axis=1,
+                keepdims=False,
+            )
+            log_qz_product = tf.reduce_sum(tf.reduce_logsumexp(log_qz_prob, axis=1, keepdims=False), axis=1,
+                                           keepdims=False)
 
-        mutual_info_loss = tf.cast(tf.reduce_mean(log_q_z_given_x - log_qz), tf.float32)
-        tc_loss = tf.cast(tf.reduce_mean(log_qz - log_qz_product), tf.float32)
-        dimension_wise_kl = tf.cast(tf.reduce_mean(log_qz_product - log_prior), tf.float32)
-        
-        return recon_loss, mutual_info_loss, tc_loss, dimension_wise_kl
+        mutual_info_loss = log_q_z_given_x - log_qz
+        tc_loss = log_qz - log_qz_product
+        dimension_wise_kl = log_qz_product - log_prior
+
+        kl_loss = tf.cast(
+            tf.multiply(self._alpha, mutual_info_loss) + tf.multiply(self._beta, tc_loss) + tf.multiply(self._gamma,
+                                                                                                        dimension_wise_kl),
+            tf.float32)
+        total_loss = tf.reduce_mean(recon_loss + kl_loss)
+
+        return total_loss, tf.reduce_mean(recon_loss), tf.reduce_mean(mutual_info_loss), tf.reduce_mean(
+            tc_loss), tf.reduce_mean(dimension_wise_kl)
 
     @tf.function
     def train_step(self, data):
         with tf.GradientTape() as tape:
             z_mean, z_log_var, z = self.encode(data)
             reconstruction = self.decode(z)
-            recon_loss, mi_loss, tc_loss, dw_kl = self.loss_function(
+            total_loss, recon_loss, mi_loss, tc_loss, dw_kl = self.loss_function(
                 reconstruction, data, z_mean, z_log_var, z, self.size_dataset,
             )
-            kl_loss = self.alpha_ * mi_loss + self.beta_ * tc_loss + self.gamma_ * dw_kl
-            total_loss = tf.cast(recon_loss, tf.float32) + tf.cast(kl_loss, tf.float32)
 
         grads = tape.gradient(total_loss, self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
@@ -350,7 +281,7 @@ class TCVAE(tf.keras.Model):
         reconstruction_loss, mutual_info_loss, tc_loss, dimension_wise_kl = self.loss_function(
             reconstruction, data, z_mean, z_log_var, z, self.size_dataset,
         )
-        kl_loss = self.alpha_ * mutual_info_loss + self.beta_ * tc_loss + self.gamma_ * dimension_wise_kl
+        kl_loss = self._alpha * mutual_info_loss + self._beta * tc_loss + self._gamma * dimension_wise_kl
         total_loss = reconstruction_loss + kl_loss
 
         return {
