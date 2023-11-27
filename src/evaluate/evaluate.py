@@ -107,7 +107,7 @@ class Evaluate:
         plt.close()
 
     def eval_dimensions(self, encoded, dimensions, path_eval, N=100, bound_factor=1.5):
-        # ld = self.model.get_config()['encoder']['config']['latent_dim']
+        # ld = self._model.get_config()['encoder']['config']['latent_dim']
         # M = np.zeros((N, ld)).astype(np.float32)
         mean_enc = np.mean(encoded, axis=0)
         max_enc = np.max(encoded, axis=0)
@@ -117,7 +117,7 @@ class Evaluate:
             bound_up = bound_factor * max_enc[dimension]
             bound_low = bound_factor * min_enc[dimension]
             M[:, dimension] = np.linspace(bound_low, bound_up, N)
-        res = self.model.decoder.predict(M)
+        res = self._model.decoder.predict(M)
         mean = np.mean(res, axis=0)
         std = np.std(res, axis=0)
         plt.figure(figsize=(15, 5))
@@ -151,7 +151,7 @@ class Evaluate:
 
     def evaluate(self, dataset, split, indices, batch_size=None):
 
-        path_eval = self.path + dataset + '/' + split + '/'
+        path_eval = self._path + dataset + '/' + split + '/'
 
         self.generate_paths([path_eval])
 
@@ -165,8 +165,8 @@ class Evaluate:
             k = k
 
         X = k['ecg']['I']
-        z_mean, z_log_var, z = self.model.encode(X)
-        reconstruction = self.model.decode(z)
+        z_mean, z_log_var, z = self._model.encode(X)
+        reconstruction = self._model.decode(z)
         self.eval_reconstruction(X, reconstruction, indices, path_eval)
 
         embedding_tsne = TSNE(n_components=2, learning_rate='auto', init='random', perplexity=3).fit_transform(z)

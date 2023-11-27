@@ -235,14 +235,12 @@ class TCVAE(tf.keras.Model):
             log_qz_product = tf.reduce_sum(tf.reduce_logsumexp(log_qz_prob, axis=1, keepdims=False), axis=1,
                                            keepdims=False)
 
-        mutual_info_loss = log_q_z_given_x - log_qz
-        tc_loss = log_qz - log_qz_product
-        dimension_wise_kl = log_qz_product - log_prior
+        mutual_info_loss = tf.cast(log_q_z_given_x - log_qz, tf.float32)
+        tc_loss = tf.cast(log_qz - log_qz_product, tf.float32)
+        dimension_wise_kl = tf.cast(log_qz_product - log_prior, tf.float32)
 
-        kl_loss = tf.cast(
-            tf.multiply(self._alpha, mutual_info_loss) + tf.multiply(self._beta, tc_loss) + tf.multiply(self._gamma,
-                                                                                                        dimension_wise_kl),
-            tf.float32)
+        kl_loss = tf.multiply(self._alpha, mutual_info_loss) + tf.multiply(self._beta, tc_loss) + tf.multiply(self._gamma,
+                                                                                                        dimension_wise_kl)
         total_loss = tf.reduce_mean(recon_loss + kl_loss)
 
         return total_loss, tf.reduce_mean(recon_loss), tf.reduce_mean(mutual_info_loss), tf.reduce_mean(

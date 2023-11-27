@@ -20,9 +20,7 @@ from utils.utils import Utils
 # from wandb.integration.keras import WandbMetricsLogger, WandbModelCheckpoint
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-
-# os.environ['TFDS_DATA_DIR'] = '/mnt/sdb/home/ml/tensorflow_datasets/'
+os.environ['TFDS_DATA_DIR'] = '/mnt/sdb/home/ml/tensorflow_datasets/'
 
 
 def main(arguments):
