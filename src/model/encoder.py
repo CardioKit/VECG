@@ -31,7 +31,7 @@ class Encoder(tf.keras.Model):
         low = 0
         high = 1000000
         seed = np.random.randint(low, high)
-        initializer = tf.keras.initializers.Orthogonal(seed=seed)
+        initializer = tf.keras.initializers.Orthogonal()
         forward = tf.keras.layers.Conv1D(filters, kernel_size, padding='causal', dilation_rate=dilation_rate,
                                          kernel_initializer=initializer)(input)
         forward = tf.keras.layers.LeakyReLU()(forward)

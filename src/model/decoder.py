@@ -8,7 +8,8 @@ class Decoder(tf.keras.Model):
         low = 0
         high = 1000000
         seed = np.random.randint(low, high)
-        initializer = tf.keras.initializers.Orthogonal(seed=seed)
+        # initializer = tf.keras.initializers.Orthogonal(seed=seed)
+        initializer = tf.keras.initializers.Orthogonal()
         forward = tf.keras.layers.Conv1DTranspose(filters, kernel_size, padding='same', dilation_rate=dilation_rate,
                                                   kernel_initializer=initializer)(input)
         forward = tf.keras.layers.LeakyReLU()(forward)
