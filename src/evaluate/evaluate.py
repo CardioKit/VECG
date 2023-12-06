@@ -8,17 +8,17 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.linear_model import LinearRegression
 
+
 class Evaluate:
 
     def __init__(self, timestamp, model, config=None):
-        self.model = model
-        self.timestamp = timestamp
-        self.path = '../results/media/' + self.timestamp + '/'
-        self.generate_paths([self.path])
-        with open(self.path + "config.txt", "w") as text_file:
+        self._model = model
+        self._timestamp = timestamp
+        self._path = '../results/media/' + self._timestamp + '/'
+        self.generate_paths([self._path])
+        with open(self._path + "config.txt", "w") as text_file:
             mod_str = str(model.get_config())
-            text_file.write(mod_str) # + '\n' + enc_str + '\n' + dec_str)
-
+            text_file.write(mod_str)  # + '\n' + enc_str + '\n' + dec_str)
 
     def generate_paths(self, paths):
         for path in paths:
@@ -71,7 +71,8 @@ class Evaluate:
         plt.savefig(path_eval + 'reconstruction.png')
         plt.close()
 
-    def eval_embedding(self, embedding, label, path_eval, title=None, xlabel=None, ylabel=None, cmap='viridis', marker_size=10, alpha=0.7):
+    def eval_embedding(self, embedding, label, path_eval, title=None, xlabel=None, ylabel=None, cmap='viridis',
+                       marker_size=10, alpha=0.7):
         """
         Plots an embedding scatter plot.
 
@@ -106,17 +107,17 @@ class Evaluate:
         plt.close()
 
     def eval_dimensions(self, encoded, dimensions, path_eval, N=100, bound_factor=1.5):
-        # ld = self.model.get_config()['encoder']['config']['latent_dim']
+        # ld = self._model.get_config()['encoder']['config']['latent_dim']
         # M = np.zeros((N, ld)).astype(np.float32)
         mean_enc = np.mean(encoded, axis=0)
         max_enc = np.max(encoded, axis=0)
         min_enc = np.min(encoded, axis=0)
         M = np.tile(mean_enc, (N, 1))
         for dimension in dimensions:
-            bound_up = bound_factor*max_enc[dimension]
-            bound_low = bound_factor*min_enc[dimension]
+            bound_up = bound_factor * max_enc[dimension]
+            bound_low = bound_factor * min_enc[dimension]
             M[:, dimension] = np.linspace(bound_low, bound_up, N)
-        res = self.model.decoder.predict(M)
+        res = self._model.decoder.predict(M)
         mean = np.mean(res, axis=0)
         std = np.std(res, axis=0)
         plt.figure(figsize=(15, 5))
@@ -127,26 +128,30 @@ class Evaluate:
 
     def eval_dimension_interpretation(self, encoded, labels, path):
         df = pd.DataFrame()
-        #text = 'label,dim,method,score'
+        # text = 'label,dim,method,score'
         for label in labels.keys():
             for dim in range(0, encoded.shape[-1]):
                 try:
-                    reg = LinearRegression().fit(np.array(encoded[:, dim]).reshape(-1, 1), np.array(labels[label])) #.reshape(-1, 1))
-                    score = reg.score(np.array(encoded[:, dim]).reshape(-1, 1), np.array(labels[label])) #.reshape(-1, 1))
-                    df = pd.concat([df, pd.DataFrame({'label': [str(label)], 'dim': [str(dim)], 'method': ['LR'], 'score': [str(score)]})])
-                    #text += str(label) + ',' + str(dim) + ',LR,' + str(score) + '\n'
+                    reg = LinearRegression().fit(np.array(encoded[:, dim]).reshape(-1, 1),
+                                                 np.array(labels[label]))  # .reshape(-1, 1))
+                    score = reg.score(np.array(encoded[:, dim]).reshape(-1, 1),
+                                      np.array(labels[label]))  # .reshape(-1, 1))
+                    df = pd.concat([df, pd.DataFrame(
+                        {'label': [str(label)], 'dim': [str(dim)], 'method': ['LR'], 'score': [str(score)]})])
+                    # text += str(label) + ',' + str(dim) + ',LR,' + str(score) + '\n'
                 except Exception as e:
                     df = pd.concat(
-                        [df, pd.DataFrame({'label': [str(label)], 'dim': [str(dim)], 'method': ['LR'], 'score': ['failed']})])
-                    #text += str(label) + ',' + str(dim) + 'LR,failed\n'
+                        [df, pd.DataFrame(
+                            {'label': [str(label)], 'dim': [str(dim)], 'method': ['LR'], 'score': ['failed']})])
+                    # text += str(label) + ',' + str(dim) + 'LR,failed\n'
                     pass
         df.to_csv(path + '.txt')
-        #with open(path + ".txt", "w") as text_file:
+        # with open(path + ".txt", "w") as text_file:
         #    text_file.write(text)
 
     def evaluate(self, dataset, split, indices, batch_size=None):
 
-        path_eval = self.path + dataset + '/' + split + '/'
+        path_eval = self._path + dataset + '/' + split + '/'
 
         self.generate_paths([path_eval])
 
@@ -160,11 +165,11 @@ class Evaluate:
             k = k
 
         X = k['ecg']['I']
-        z_mean, z_log_var, z = self.model.encode(X)
-        reconstruction = self.model.decode(z)
+        z_mean, z_log_var, z = self._model.encode(X)
+        reconstruction = self._model.decode(z)
         self.eval_reconstruction(X, reconstruction, indices, path_eval)
 
-        embedding_tsne = TSNE(n_components=2, learning_rate='auto', init = 'random', perplexity = 3).fit_transform(z)
+        embedding_tsne = TSNE(n_components=2, learning_rate='auto', init='random', perplexity=3).fit_transform(z)
         embedding_pca = PCA(n_components=2).fit_transform(z)
 
         for label in k.keys():
