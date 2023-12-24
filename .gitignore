@@ -160,8 +160,9 @@ cython_debug/
 .idea/
 
 # Project
-results/*
 /artifacts/
-/wandb/
 /results/model/
 /evaluation/
+/mlruns/
+/results/
+/src/mlruns/

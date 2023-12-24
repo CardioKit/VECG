@@ -209,7 +209,8 @@ def jensen_shannon_divergence(meta_data, z, **kwargs):
     return scores
 
 
-def total_variation_distance(): ...
+def total_variation_distance():
+    NotImplementedError
 
 
 # might not implement, because also f-divergence and holds same information as kl-divergence and js-divergence

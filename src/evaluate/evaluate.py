@@ -1,32 +1,26 @@
-import os
-
 import numpy as np
 import pandas as pd
+import umap
+import pacmap
 import tensorflow_datasets as tfds
 from matplotlib import pyplot as plt
+import seaborn as sns
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.linear_model import LinearRegression
 
+from utils.utils import Utils
+
 
 class Evaluate:
 
-    def __init__(self, timestamp, model, config=None):
+    def __init__(self, base_path, model, config=None):
         self._model = model
-        self._timestamp = timestamp
-        self._path = '../results/media/' + self._timestamp + '/'
-        self.generate_paths([self._path])
+        self._path = base_path
+        Utils.generate_paths([self._path])
         with open(self._path + "config.txt", "w") as text_file:
             mod_str = str(model.get_config())
-            text_file.write(mod_str)  # + '\n' + enc_str + '\n' + dec_str)
-
-    def generate_paths(self, paths):
-        for path in paths:
-            try:
-                os.makedirs(path, exist_ok=True)
-                print(f"Created directory: {path}")
-            except FileExistsError:
-                print(f"Directory already exists: {path}")
+            text_file.write(mod_str)
 
     def eval_reconstruction(self, X, reconstruction, indices, path_eval, titles=None, xlabel=None, ylabel=None):
         """
@@ -91,18 +85,10 @@ class Evaluate:
             None
         """
 
+        df = pd.DataFrame(embedding, columns=['First Axis', 'Second Axis'])
+        df['label'] = label
         plt.figure(figsize=(10, 8))
-        plt.scatter(embedding[:, 0], embedding[:, 1], s=marker_size, c=label, cmap=cmap, alpha=alpha)
-
-        if title:
-            plt.title(title)
-        if xlabel:
-            plt.xlabel(xlabel)
-        if ylabel:
-            plt.ylabel(ylabel)
-
-        plt.colorbar(label='Label')
-        plt.tight_layout()
+        sns.scatterplot(data=df, x="First Axis", y="Second Axis", hue="label", s=8)
         plt.savefig(path_eval + '.png')
         plt.close()
 
@@ -149,41 +135,51 @@ class Evaluate:
         # with open(path + ".txt", "w") as text_file:
         #    text_file.write(text)
 
-    def evaluate(self, dataset, split, indices, batch_size=None):
+    def evaluate(self, dataset, split, batch_size=10000):
 
-        path_eval = self._path + dataset + '/' + split + '/'
-
-        self.generate_paths([path_eval])
-
+        path_eval = self._path + 'media/' + dataset + '/' + split + '/'
+        Utils.generate_paths([path_eval])
         data = tfds.load(dataset)
-        if batch_size == None:
-            ds = data[split].batch(len(data[split]))
-        else:
-            ds = data[split].batch(batch_size)
+        ds = data[split].shuffle(128).batch(batch_size)
 
-        for k in ds.take(1):
-            k = k
-
-        X = k['ecg']['I']
+        iterator = iter(ds)
+        batch = next(iterator)
+        X = batch['ecg']['I']
         z_mean, z_log_var, z = self._model.encode(X)
-        reconstruction = self._model.decode(z)
-        self.eval_reconstruction(X, reconstruction, indices, path_eval)
 
-        embedding_tsne = TSNE(n_components=2, learning_rate='auto', init='random', perplexity=3).fit_transform(z)
-        embedding_pca = PCA(n_components=2).fit_transform(z)
+        embedding_tsne = TSNE(
+            n_components=2,
+            learning_rate='auto',
+            init='random',
+            perplexity=3,
+        ).fit_transform(z_mean)
 
-        for label in k.keys():
-            try:
-                self.eval_embedding(embedding_pca, k[label], path_eval + 'embedding_pca_' + label)
-                self.eval_embedding(embedding_tsne, k[label], path_eval + 'embedding_tsne_' + label)
-            except Exception as e:
-                print(e)
-                pass
+        embedding_pca = PCA(
+            n_components=2
+        ).fit_transform(z_mean)
+
+        embedding_umap = umap.UMAP().fit_transform(z_mean)
+
+        embedding_pacmap = pacmap.PaCMAP(
+            n_components=2, n_neighbors=None, MN_ratio=0.5, FP_ratio=2.0
+        ).fit_transform(z_mean, init="pca")
+
+        embedding_pacmap[:, 0] = embedding_pacmap[:, 0] - np.min(embedding_pacmap[:, 0]) + 1.0
+        embedding_pacmap[:, 1] = embedding_pacmap[:, 1] - np.min(embedding_pacmap[:, 1]) + 1.0
+
+        for label in batch.keys():
+            if (label != 'ecg') & (label != 'quality'):
+                try:
+                    self.eval_embedding(embedding_pca, batch[label], path_eval + 'embedding_pca_' + label)
+                    self.eval_embedding(embedding_tsne, batch[label], path_eval + 'embedding_tsne_' + label)
+                    self.eval_embedding(embedding_umap, batch[label], path_eval + 'embedding_umap_' + label)
+                    self.eval_embedding(embedding_pacmap, batch[label], path_eval + 'embedding_pacmap_' + label)
+                except Exception as e:
+                    pass
 
         for dim in range(0, z.shape[-1]):
             try:
                 self.eval_dimensions(z, [dim], path_eval + 'dimension_' + str(dim))
             except Exception as e:
-                print(e)
                 pass
-        self.eval_dimension_interpretation(z, k, path_eval + 'dimension_interpretation')
+        self.eval_dimension_interpretation(z, batch, path_eval + 'dimension_interpretation')

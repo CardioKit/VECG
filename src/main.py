@@ -1,106 +1,84 @@
-'''
-The main script call for running the experiment.
-'''
 import argparse
 import datetime
 import os
 
 import tensorflow_datasets as tfds
 import tensorflow as tf
-from evaluate.evaluate import Evaluate
+from keras.src.callbacks import ReduceLROnPlateau, TerminateOnNaN, CSVLogger, ModelCheckpoint
+from keras.src.optimizers import RMSprop
 
+from utils.callbacks import ReconstructionPlot, CoefficientSchedulerTCVAE
+from utils.utils import Utils
+from metrics.loss import TCVAELoss
 from model.encoder import Encoder
 from model.decoder import Decoder
-from model.tcvae import TCVAE
+from model.dvae import DVAE
+from evaluate.evaluate import Evaluate
 
-from utils.utils import Utils
-
-# import logging
-# import wandb
-# from wandb.integration.keras import WandbMetricsLogger, WandbModelCheckpoint
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 os.environ['TFDS_DATA_DIR'] = '/mnt/sdb/home/ml/tensorflow_datasets/'
 
 
-def main(arguments):
-    '''
-    The main script call for running the experiment.
-    '''
-
+def main(parameters):
     ######################################################
     # INITIALIZATION
     ######################################################
-    tf.random.set_seed(arguments.seed)
+    tf.random.set_seed(parameters['seed'])
     start_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    # path_model = arguments.path_results + '/model/best_vae_' + start_time
-    # path_epoch_log = arguments.path_results + '/logs/epochs_' + start_time + '.log'
-    # wandb.init(
-    # project=arguments.wandb_project, dir=arguments.path_results,
-    # mode=arguments.wandb_mode, config=arguments,
-    # )
-    # wandb_logger = logging.getLogger("wandb")
-    # wandb_logger.setLevel(logging.ERROR)
+    base_path = '../results/' + start_time + '/'
+    Utils.generate_paths([base_path + 'media/', base_path + 'model/', base_path + 'reconstruction/'])
+    Utils.write_json_file(parameters, base_path + 'params.json')
 
     ######################################################
     # DATA LOADING
     ######################################################
-    data_train = tfds.load(arguments.dataset, split=['train'], shuffle_files=True)
-    data_val = tfds.load('ptb', split=['train'], shuffle_files=True)
-
-    train = data_train[0].shuffle(1024).batch(arguments.batch_size).prefetch(tf.data.AUTOTUNE)
-    val = data_val[0].shuffle(4096).batch(arguments.batch_size).prefetch(tf.data.AUTOTUNE)
+    data_train = tfds.load(parameters['train_dataset'], split=['train'], shuffle_files=True)
+    train = data_train[0].shuffle(parameters['shuffle_size']).batch(parameters['batch_size']).prefetch(tf.data.AUTOTUNE)
+    data_val = tfds.load(parameters['val_dataset'], split=['train'], shuffle_files=True)
+    val = data_val[0].shuffle(parameters['shuffle_size']).batch(parameters['batch_size']).prefetch(tf.data.AUTOTUNE)
 
     ######################################################
     # MACHINE LEARNING
     ######################################################
     print('Num GPUs Available: ', len(tf.config.list_physical_devices('GPU')))
 
-    encoder = Encoder(arguments.latent_dim)
-    decoder = Decoder(arguments.latent_dim)
-
-    tc_vae = TCVAE(
-        encoder, decoder, len(data_train[0]), mss=True, coefficients=tuple(arguments.coefficients),
-    )
-    tc_vae.compile(optimizer=tf.keras.optimizers.legacy.RMSprop())
-    # data_sample, label_sample = get_samples(val, n=4096, label=arguments.label)
-
-    callbacks = [
-        tf.keras.callbacks.ReduceLROnPlateau(
-            monitor='recon', factor=0.05, patience=10, min_lr=0.000001,
-        ),
-        tf.keras.callbacks.TerminateOnNaN(),
-        # tf.keras.callbacks.ModelCheckpoint(path_model, monitor='val_loss', save_best_only=True),
-        # CollapseCallback(data_sample),
-        # KLCoefficientScheduler(alpha, beta, gamma),
-        # tf.keras.callbacks.CSVLogger(path_epoch_log),
-        # WandbMetricsLogger(),
-        # WandbModelCheckpoint(path_model, monitor='val_loss', save_best_only=True),
-        # tf.keras.callbacks.LearningRateScheduler(scheduler),
-        # ReconstructionPlot(get_samples(train, n=4)),
-        # LatentVectorSpaceSnapshot(get_samples(val, n=1000, label=arguments.label))
-    ]
-
-    tc_vae.fit(Utils.data_generator(train), steps_per_epoch=len(train), epochs=arguments.epochs,
-               # validation_data=data_generator(val),
-               # validation_steps=len(val),
-               callbacks=callbacks, verbose=1, )
+    if parameters['load_model'] == 'None':
+        loss = TCVAELoss(len(train), parameters['coefficients'])
+        callbacks = [
+            ReduceLROnPlateau(monitor='recon', factor=0.05, patience=10, min_lr=0.000001),
+            TerminateOnNaN(),
+            CSVLogger(base_path + 'training_progress.csv'),
+            CoefficientSchedulerTCVAE(loss, parameters['epochs'], parameters['coefficients_raise'],
+                                      parameters['coefficients']),
+            ModelCheckpoint(filepath=base_path + 'model/', monitor='loss', save_best_only=True, verbose=0),
+            ReconstructionPlot(train, parameters['index_tracked_sample'], base_path + 'reconstruction/',
+                               period=parameters['period_reconstruction_plot']),
+            # CollapseCallback(train),
+        ]
+        encoder = Encoder(parameters['latent_dimension'])
+        decoder = Decoder(parameters['latent_dimension'])
+        dvae = DVAE(encoder, decoder, loss)
+        dvae.compile(optimizer=RMSprop(learning_rate=parameters['learning_rate']))
+        dvae.fit(
+            Utils.data_generator(train),
+            steps_per_epoch=len(train),
+            epochs=parameters['epochs'],
+            validation_data=Utils.data_generator(val),
+            validation_steps=len(val),
+            callbacks=callbacks,
+            verbose=1,
+        )
+    else:
+        model_path = '../results/' + parameters['load_model'] + '/model/'
+        print('Load model from:', model_path)
+        dvae = tf.keras.models.load_model(model_path)
 
     ######################################################
     # EVALUATION
     ######################################################
-    ev = Evaluate(start_time, tc_vae)
-    ev.evaluate('zheng', 'train', [50, 100, 150, 200])
-    ev.evaluate('medalcare', 'train', [50, 100, 150, 200])
-    ev.evaluate('medalcare', 'validation', [50, 100, 150, 200])
-    ev.evaluate('medalcare', 'test', [50, 100, 150, 200])
-    ev.evaluate('synth', 'train', [50, 100, 150, 200])
-    ev.evaluate('ptb', 'train', [50, 100, 150, 200])
-
-    tc_vae.fit(Utils.data_generator(val), steps_per_epoch=len(val), epochs=100, verbose=1, )
-
-    ev1 = Evaluate(start_time, tc_vae)
-    ev1.evaluate('icentia11k', '0', [50, 100, 150, 200], 10000)
+    ev = Evaluate(base_path, dvae)
+    for dataset in parameters['eval_data']:
+        ev.evaluate(dataset, 'train')
+    ev.evaluate('polar', 'Subject1')
 
 
 if __name__ == '__main__':
@@ -108,45 +86,10 @@ if __name__ == '__main__':
         prog='VECG', description='Representational Learning of ECG using TC-VAE',
     )
     parser.add_argument(
-        '-r', '--path_results', type=str, default='../results',
-        help='location to save results (default: ../results)',
-    )
-    parser.add_argument(
-        '-d', '--dataset', type=str, default='ptb',
-        help='choose tensorflow dataset (default: ptb)',
-    )
-    parser.add_argument(
-        '-l', '--label', type=str, default='quality',
-        help='choose a labelling (default: quality)',
-    )
-    parser.add_argument(
-        '-c', '--coefficients', nargs=3, type=float, default=(0.01, 0.04, 0.01),
-        help='coefficients of KL decomposition (a, b, c)',
-    )
-    parser.add_argument(
-        '-e', '--epochs', type=int, default=300,
-        help='logs of train (default: 100)',
-    )
-    parser.add_argument(
-        '-b', '--batch_size', type=int, default=256,
-        help='batch size for model training (default: 256)',
-    )
-    parser.add_argument(
-        '-s', '--seed', type=int, default=42,
-        help='seed for reproducibility (default: 42)',
-    )
-    parser.add_argument(
-        '-ld', '--latent_dim', type=int, default=16,
-        help='dimension of the latent vector space (default: 16)',
-    )
-    parser.add_argument(
-        '-w', '--wandb_mode', type=str, default='online',
-        help='Disable wandb tracking (default: online)',
-    )
-    parser.add_argument(
-        '-p', '--wandb_project', type=str, default='vecg',
-        help='Wandb project name (default: vecg)',
+        '-p', '--path_config', type=str, default='./params.yml',
+        help='location of the params file (default: ./params.yml)',
     )
 
     args = parser.parse_args()
-    main(args)
+    parameters = Utils.load_yaml_file(args.path_config)
+    main(parameters)

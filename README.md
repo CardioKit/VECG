@@ -45,19 +45,10 @@ Execute the main file to run the code:
 ```
 python main.py 
 ```
-The main file supports several optional parameters:
+The main file requires a configuration file:
 
 ```
 options:
   -h, --help            show this help message and exit
-  -r, --path_results    location to save results (default: ../results)
-  -d, --dataset         choose tensorflow dataset (default: zheng)
-  -l, --label           choose a labelling (default: quality)
-  -c, --coefficients    coefficients of KL decomposition (a, b, c)
-  -e, --epochs          epochs of train (default: 50)
-  -b, --batch_size      batch size for model training (default: 256)
-  -s, --seed            seed for reproducibility (default: 42)
-  -ld, --latent_dim     dimension of the latent vector space (default: 16)
-  -w, --wandb_mode      Disable wandb tracking (default: online)
-  -p, --wandb_project   Wandb project name (default: vecg)
+  -p, --path_config     location of the params file (default: ./params.yml)
 ```
