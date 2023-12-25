@@ -1,4 +1,4 @@
-train_dataset: ptb
+train_dataset: zheng
 val_dataset: zheng
 shuffle_size: 1024
 label: quality

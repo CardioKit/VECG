@@ -1,11 +1,9 @@
 import tensorflow as tf
 
-from metrics.loss import VAELoss
-
 
 class DVAE(tf.keras.Model):
 
-    def __init__(self, encoder, decoder, lossEntity: VAELoss, **kwargs):
+    def __init__(self, encoder, decoder, lossEntity, **kwargs):
         super().__init__(**kwargs)
 
         self._encoder = encoder
@@ -32,9 +30,6 @@ class DVAE(tf.keras.Model):
         config['decoder'] = self._decoder
         config['summary'] = self.summary()
         return config
-
-    def update_coefficients(self, coefficients):
-        self._lossEntity.set_coefficients(coefficients)
 
     @tf.function
     def sample(self, eps=None):

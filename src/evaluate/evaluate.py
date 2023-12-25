@@ -65,8 +65,8 @@ class Evaluate:
         plt.savefig(path_eval + 'reconstruction.png')
         plt.close()
 
-    def eval_embedding(self, embedding, label, path_eval, title=None, xlabel=None, ylabel=None, cmap='viridis',
-                       marker_size=10, alpha=0.7):
+    def eval_embedding(self, embedding, label, path_eval, loc_scaling=False,
+                    title=None, xlabel=None, ylabel=None, cmap='viridis', marker_size=10, alpha=0.7):
         """
         Plots an embedding scatter plot.
 
@@ -84,6 +84,9 @@ class Evaluate:
         Returns:
             None
         """
+        if loc_scaling:
+            embedding[:, 0] = np.log((embedding[:, 0] - np.min(embedding[:, 0])) + 1.0)
+            embedding[:, 1] = np.log((embedding[:, 1] - np.min(embedding[:, 1])) + 1.0)
 
         df = pd.DataFrame(embedding, columns=['First Axis', 'Second Axis'])
         df['label'] = label
@@ -93,8 +96,7 @@ class Evaluate:
         plt.close()
 
     def eval_dimensions(self, encoded, dimensions, path_eval, N=100, bound_factor=1.5):
-        # ld = self._model.get_config()['encoder']['config']['latent_dim']
-        # M = np.zeros((N, ld)).astype(np.float32)
+
         mean_enc = np.mean(encoded, axis=0)
         max_enc = np.max(encoded, axis=0)
         min_enc = np.min(encoded, axis=0)
@@ -114,28 +116,23 @@ class Evaluate:
 
     def eval_dimension_interpretation(self, encoded, labels, path):
         df = pd.DataFrame()
-        # text = 'label,dim,method,score'
         for label in labels.keys():
             for dim in range(0, encoded.shape[-1]):
                 try:
                     reg = LinearRegression().fit(np.array(encoded[:, dim]).reshape(-1, 1),
-                                                 np.array(labels[label]))  # .reshape(-1, 1))
+                                                 np.array(labels[label]))
                     score = reg.score(np.array(encoded[:, dim]).reshape(-1, 1),
-                                      np.array(labels[label]))  # .reshape(-1, 1))
+                                      np.array(labels[label]))
                     df = pd.concat([df, pd.DataFrame(
                         {'label': [str(label)], 'dim': [str(dim)], 'method': ['LR'], 'score': [str(score)]})])
-                    # text += str(label) + ',' + str(dim) + ',LR,' + str(score) + '\n'
                 except Exception as e:
                     df = pd.concat(
                         [df, pd.DataFrame(
                             {'label': [str(label)], 'dim': [str(dim)], 'method': ['LR'], 'score': ['failed']})])
-                    # text += str(label) + ',' + str(dim) + 'LR,failed\n'
                     pass
         df.to_csv(path + '.txt')
-        # with open(path + ".txt", "w") as text_file:
-        #    text_file.write(text)
 
-    def evaluate(self, dataset, split, batch_size=10000):
+    def evaluate(self, dataset, split, batch_size=50000):
 
         path_eval = self._path + 'media/' + dataset + '/' + split + '/'
         Utils.generate_paths([path_eval])
@@ -164,8 +161,6 @@ class Evaluate:
             n_components=2, n_neighbors=None, MN_ratio=0.5, FP_ratio=2.0
         ).fit_transform(z_mean, init="pca")
 
-        embedding_pacmap[:, 0] = embedding_pacmap[:, 0] - np.min(embedding_pacmap[:, 0]) + 1.0
-        embedding_pacmap[:, 1] = embedding_pacmap[:, 1] - np.min(embedding_pacmap[:, 1]) + 1.0
 
         for label in batch.keys():
             if (label != 'ecg') & (label != 'quality'):

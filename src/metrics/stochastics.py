@@ -10,13 +10,13 @@ class Stochastics():
         pi = tf.constant(math.pi)
         normalization = tf.math.log(2. * pi)
         inv_sigma = tf.exp(-log_var)
-
         tmp = (samples - mean)
         return -0.5 * (tmp * tmp * inv_sigma + log_var + normalization)
 
     @staticmethod
     def log_sum_exp(value, dim=None, keepdim=False):
-        """Numerically stable implementation of the operation
+        """
+        Numerically stable implementation of the operation
         value.exp().sum(dim, keepdim).log()
         """
         if dim is not None:

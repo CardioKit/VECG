@@ -53,7 +53,7 @@ class TCVAELoss(VAELoss):
         N = tf.constant(self._n)
         M = tf.math.subtract(batch_size, 1)
         strat_weight = tf.divide(tf.math.subtract(N, M), tf.math.multiply(N, M))
-        new_column1 = tf.cast(tf.fill((batch_size, 1), 1 / N), tf.float32)
+        new_column1 = tf.cast(tf.fill((batch_size, 1), tf.divide(1, N)), tf.float32)
         new_column2 = tf.cast(tf.fill((batch_size, 1), strat_weight), tf.float32)
 
         W = tf.divide(tf.ones([batch_size, batch_size]), tf.cast(M, tf.float32))
@@ -112,6 +112,7 @@ class TCVAELoss(VAELoss):
         kl_loss = ((tf.multiply(self._alpha, mutual_info_loss)
                     + tf.multiply(self._beta, tc_loss))
                    + tf.multiply(self._gamma, dimension_wise_kl))
+
         total_loss = tf.reduce_mean(recon_loss + kl_loss)
 
         return {
@@ -124,3 +125,21 @@ class TCVAELoss(VAELoss):
             "beta": self._beta,
             "gamma": self._gamma,
         }
+
+'''
+class HFVAELoss(VAELoss):
+
+    def __init__(self, size_dataset, coefficients):
+        self._n = size_dataset
+    
+    def loss(self, reconstruction, x, mu, log_var, z):
+
+
+        return {
+            "loss": tf.reduce_mean(0.0),
+            "recon": tf.reduce_mean(0.0),
+            "mi": tf.reduce_mean(0.0),
+            "tc": tf.reduce_mean(0.0),
+            "dw_kl": tf.reduce_mean(0.0),
+        }
+'''

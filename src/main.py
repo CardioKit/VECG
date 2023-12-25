@@ -17,7 +17,6 @@ from evaluate.evaluate import Evaluate
 
 os.environ['TFDS_DATA_DIR'] = '/mnt/sdb/home/ml/tensorflow_datasets/'
 
-
 def main(parameters):
     ######################################################
     # INITIALIZATION
@@ -42,14 +41,14 @@ def main(parameters):
     print('Num GPUs Available: ', len(tf.config.list_physical_devices('GPU')))
 
     if parameters['load_model'] == 'None':
-        loss = TCVAELoss(len(train), parameters['coefficients'])
+        loss = TCVAELoss(len(data_train[0]), parameters['coefficients'])
         callbacks = [
             ReduceLROnPlateau(monitor='recon', factor=0.05, patience=10, min_lr=0.000001),
             TerminateOnNaN(),
             CSVLogger(base_path + 'training_progress.csv'),
             CoefficientSchedulerTCVAE(loss, parameters['epochs'], parameters['coefficients_raise'],
                                       parameters['coefficients']),
-            ModelCheckpoint(filepath=base_path + 'model/', monitor='loss', save_best_only=True, verbose=0),
+            #ModelCheckpoint(filepath=base_path + 'model/', monitor='loss', save_best_only=True, verbose=0),
             ReconstructionPlot(train, parameters['index_tracked_sample'], base_path + 'reconstruction/',
                                period=parameters['period_reconstruction_plot']),
             # CollapseCallback(train),
