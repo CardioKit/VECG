@@ -28,8 +28,10 @@ class SimilarityMeasure:
         self.scores = self.compute_scores()
 
     def compute_scores(self):
-        return self.sim_function(self.data.meta_data, self.data.z, discrete_features=self.data.discrete_features,
-                                 num_bins=self.num_bins)
+        return self.sim_function(
+            self.data.meta_data, self.data.z,
+            discrete_features=self.data.discrete_features, num_bins=self.num_bins,
+        )
 
     def get_interpretable_dims(self):
         top_dimension = list(map(lambda x: np.argmax(x), self.scores.T))

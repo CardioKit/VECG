@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 
 from metrics.loss import TCVAELoss
 
-from utils.utils import Utils
+from utils.helper import Helper
 
 
 class CoefficientSchedulerTCVAE(tf.keras.callbacks.Callback):
@@ -27,7 +27,7 @@ class LatentVectorSpaceSnapshot(tf.keras.callbacks.Callback):
 
     def __init__(self, dataset, sample, path, period=10):
         super(LatentVectorSpaceSnapshot, self).__init__()
-        self._data = Utils.get_sample(dataset, sample)
+        self._data = Helper.get_sample(dataset, sample)
         self._period = period
         self._path = path
 
@@ -44,7 +44,7 @@ class LatentVectorSpaceSnapshot(tf.keras.callbacks.Callback):
 class ReconstructionPlot(tf.keras.callbacks.Callback):
     def __init__(self, dataset, sample, path, period=5):
         super(ReconstructionPlot, self).__init__()
-        self._data = Utils.get_sample(dataset, sample)
+        self._data = Helper.get_sample(dataset, sample)
         self._period = period
         self._path = path
 

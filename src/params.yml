@@ -1,21 +1,26 @@
 train_dataset: zheng
 val_dataset: zheng
+save_results_path: ../results/
 shuffle_size: 1024
 label: quality
 seed: 42
 load_model: None
-epochs: 200
+epochs: 10
 batch_size: 512
 latent_dimension: 8
 learning_rate: 0.001
 coefficients:
-  alpha: 0.00001
-  beta: 0.001
-  gamma: 0.0005
-coefficients_raise: 20
+  alpha: 0.0001
+  beta: 0.01
+  gamma: 0.005
+coefficients_raise: 50
 period_reconstruction_plot: 20
 index_tracked_sample: 5
-eval_data:
-  - zheng
+eval_data_disentanglement:
   - synth
-  - ptb
+eval_data_anomaly:
+  - zheng
+eval_data_personalization:
+  icentia11k:
+    labels:
+      pcr: True
