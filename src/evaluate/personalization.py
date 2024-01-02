@@ -1,6 +1,13 @@
 import tensorflow as tf
+import tensorflow_datasets as tfds
+import umap
+from keras.src.callbacks import CSVLogger
+from keras.src.optimizers import RMSprop
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 
 from utils.helper import Helper
+from utils.visualizations import Visualizations
 
 
 class EvaluatePersonalization():
@@ -8,33 +15,31 @@ class EvaluatePersonalization():
         self._model = model
         self._path_save = path_save + 'evaluation/personlization/'
 
-    def fine_tune_evaluate(self, dataset, split, epochs):
-        model_fine_tune = tf.keras.clone_model(self._model)
-        model_fine_tune.fit(
-            Helper.data_generator(dataset),
-            len(dataset),
-        )
-        z_mean, _, _ = model_fine_tune.encode(dataset)
+    def fine_tune_evaluate(self, datasets, batch_size=256):
+        for d in datasets.keys():
+            name = datasets[d]['name']
+            epochs = datasets[d]['epochs']
+            for split in datasets[d]['splits']:
+                path = self._path_save + name + '_' + split + '/'
+                data_train = tfds.load(name, split=[split])
+                train = data_train[0].batch(batch_size).prefetch(tf.data.AUTOTUNE)
+                Helper.generate_paths([path])
 
+                model_fine_tune = tf.keras.models.clone_model(self._model)
+                model_fine_tune.compile(optimizer=RMSprop(learning_rate=0.001))
+                model_fine_tune.fit(
+                    Helper.data_generator(train),
+                    steps_per_epoch=len(train),
+                    epochs=epochs,
+                    callbacks=CSVLogger(path + '/training_progress.csv'),
+                )
 
-'''
-    data = tfds.load('synth')
-    ds = data['train'].shuffle(128).batch(50000)
-    iterator = iter(ds)
-    batch = next(iterator)
-    X = batch['ecg']['I']
-    z_mean, z_log_var, z = dvae.encode(X)
+                z, labels = Helper.get_embedding(model_fine_tune, name, split, save_path=path)
 
-    datapre = {
-        'meta_data': np.array(
-            [batch['p_height'],
-             batch['t_height']]
-        ).reshape(-1, 2),
-        'z': np.array(z),
-        'discrete_features': [False, False]
-    }
-    datapre = dotdict(datapre)
-    sim_measure = SimilarityMeasure(datapre, linear_regressor)
-    dis_metric = DisentanglementMetricsInfo(sim_measure, mutual_information_gap, None)
-    print(dis_metric.get_meta_data_entropies())
-'''
+                embedding_pca = PCA(n_components=2).fit_transform(z[:, :, 0])
+                Visualizations.plot_embedding(embedding_pca, labels=labels, path_eval=path + '/pca')
+                embedding_umap = umap.UMAP().fit_transform(z[:, :, 0])
+                Visualizations.plot_embedding(embedding_umap, labels=labels, path_eval=path + '/umap')
+                embedding_tsne = TSNE().fit_transform(z[:, :, 0])
+                Visualizations.plot_embedding(embedding_tsne, labels=labels, path_eval=path + '/tsne')
+                # pacmap

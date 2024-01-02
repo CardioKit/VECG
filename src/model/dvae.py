@@ -28,7 +28,8 @@ class DVAE(tf.keras.Model):
         config = super().get_config()
         config['encoder'] = self._encoder
         config['decoder'] = self._decoder
-        config['summary'] = self.summary()
+        config['lossEntity'] = self._lossEntity
+        #config['summary'] = self.summary()
         return config
 
     @tf.function

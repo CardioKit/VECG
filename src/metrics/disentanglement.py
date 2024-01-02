@@ -14,8 +14,6 @@ class DisentanglementMetricsInfo:
             sim_measure (SimilarityMeasure): an object containing DataPreprocessor data, a similarity measure
                 and num_bins
             dis_metric (function): a disentanglement metric
-            mi_scores (np.ndarray): array of shape (D,F) where each value corresponds to the mutual information between
-                the generative factor and the latent dimension
         """
         self.sim_measure = sim_measure
         self.dis_metric = dis_metric

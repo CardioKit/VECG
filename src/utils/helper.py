@@ -3,6 +3,10 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import tensorflow_datasets as tfds
+import umap
+from pacmap import pacmap
+from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 
 
 class dotdict(dict):
@@ -89,6 +93,7 @@ class Helper:
 
     @staticmethod
     def get_embedding(model, dataset, split='train', save_path=None, batch_size=512):
+
         data_train = tfds.load(dataset, split=[split])
         train = data_train[0].batch(batch_size).prefetch(tf.data.AUTOTUNE)
         labels = Helper.get_labels(train)
@@ -101,7 +106,16 @@ class Helper:
         z = np.concatenate((z_mean, z_log_var, z), axis=2)
 
         if save_path != None:
-            file_path = save_path + '/' + dataset + '_' + split + '.npy'
+            file_path = save_path + '/' + dataset + '_' + str(split) + '.npy'
+            Helper.generate_paths([save_path])
             with open(file_path, 'wb') as f:
                 np.save(f, z)
         return z, labels
+
+    @staticmethod
+    def embedd(X):
+        embedding_tsne = TSNE().fit_transform(X)
+        embedding_pca = PCA(n_components=2).fit_transform(X)
+        embedding_umap = umap.UMAP().fit_transform(X)
+        embedding_pacmap = None #pacmap.PaCMAP().fit_transform(X)
+        return embedding_tsne, embedding_pca, embedding_umap, embedding_pacmap

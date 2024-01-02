@@ -21,6 +21,7 @@ from evaluate.personalization import EvaluatePersonalization
 
 os.environ['TFDS_DATA_DIR'] = '/mnt/sdb/home/ml/tensorflow_datasets/'
 
+
 def main(parameters):
     ######################################################
     # INITIALIZATION
@@ -35,10 +36,14 @@ def main(parameters):
     ######################################################
     # DATA LOADING
     ######################################################
-    data_train = tfds.load(parameters['train_dataset'], split=['train'], shuffle_files=True)
-    train = data_train[0].shuffle(parameters['shuffle_size']).batch(parameters['batch_size']).prefetch(tf.data.AUTOTUNE)
-    data_val = tfds.load(parameters['val_dataset'], split=['train'], shuffle_files=True)
-    val = data_val[0].shuffle(parameters['shuffle_size']).batch(parameters['batch_size']).prefetch(tf.data.AUTOTUNE)
+    data_train = tfds.load(parameters['train_dataset']['name'], split=[parameters['train_dataset']['split']],
+                           shuffle_files=True)
+    train = data_train[0].shuffle(parameters['train_dataset']['shuffle_size']).batch(
+        parameters['train_dataset']['batch_size']).prefetch(tf.data.AUTOTUNE)
+    data_val = tfds.load(parameters['val_dataset']['name'], split=[parameters['val_dataset']['split']],
+                         shuffle_files=True)
+    val = data_val[0].shuffle(parameters['val_dataset']['shuffle_size']).batch(
+        parameters['val_dataset']['batch_size']).prefetch(tf.data.AUTOTUNE)
 
     ######################################################
     # MACHINE LEARNING
@@ -46,12 +51,12 @@ def main(parameters):
     if parameters['load_model'] == 'None':
         loss = TCVAELoss(len(data_train[0]), parameters['coefficients'])
         callbacks = [
-            ReduceLROnPlateau(monitor='recon', factor=0.05, patience=10, min_lr=0.000001),
+            ReduceLROnPlateau(monitor='recon', factor=0.05, patience=50, min_lr=0.0001),
             TerminateOnNaN(),
             CSVLogger(base_path + '/training_progress.csv'),
             CoefficientSchedulerTCVAE(loss, parameters['epochs'], parameters['coefficients_raise'],
                                       parameters['coefficients']),
-            #ModelCheckpoint(filepath=base_path + '/model/', monitor='loss', save_best_only=True, verbose=0),
+            # ModelCheckpoint(filepath=base_path + '/model/', monitor='loss', save_best_only=True, verbose=0),
             ReconstructionPlot(train, parameters['index_tracked_sample'], base_path + '/reconstruction/',
                                period=parameters['period_reconstruction_plot']),
             # CollapseCallback(train),
@@ -77,12 +82,13 @@ def main(parameters):
     ######################################################
     # EVALUATION
     ######################################################
-
     evaluateDisentanglement = EvaluateDisentanglement(dvae, base_path)
-    evaluateDisentanglement.evaluate(parameters['eval_data_disentanglement'])
-
     evaluateAnomalyDetection = EvaluateAnomalyDetection(dvae, base_path)
-    evaluateAnomalyDetection.evaluate(parameters['eval_data_disentanglement'])
+    evaluatePersonalization = EvaluatePersonalization(dvae, base_path)
+
+    evaluateDisentanglement.evaluate(parameters['eval_data_disentanglement'])
+    evaluateAnomalyDetection.evaluate(parameters['eval_data_anomaly'])
+    evaluatePersonalization.fine_tune_evaluate(parameters['eval_data_personalization'])
 
 
 if __name__ == '__main__':
