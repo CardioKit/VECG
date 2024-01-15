@@ -1,36 +1,47 @@
 train_dataset:
-  name: 'synth'
+  name: 'ptb'
   split: 'train'
   shuffle_size: 1024
   batch_size: 1024
 val_dataset:
-  name: 'medalcare'
-  split: 'validation'
+  name: 'zheng'
+  split: 'train'
   shuffle_size: 1024
   batch_size: 1024
 save_results_path: ../results/
 seed: 42
 load_model: None
 epochs: 1000
-latent_dimension: 16
-learning_rate: 0.002
+latent_dimension: 12
+learning_rate: 0.0001
 coefficients:
-  alpha: 0.001
-  beta: 0.004
-  gamma: 0.1
-coefficients_raise: 50
-period_reconstruction_plot: 50
+  alpha: 1.0
+  beta: 4.0
+  gamma: 1.0
+coefficients_raise: 20
+early_stopping: 50000
+period_reconstruction_plot: 20
 index_tracked_sample: 5
-eval_data_disentanglement:
+eval_data:
   synth:
     name: 'synth'
     splits: [ 'train' ]
-eval_data_anomaly:
+    fine_tune: False
   zheng:
     name: 'zheng'
     splits: [ 'train' ]
-eval_data_personalization:
+    fine_tune: False
+  medalcare:
+    name: 'medalcare'
+    splits: [ 'train' ]
+    fine_tune: False
+  ptb:
+    name: 'ptb'
+    splits: [ 'train' ]
+    fine_tune: False
   icentia11k:
     name: 'icentia11k'
     splits: [ '1', '2', '3', '4', '5', '6', '7', '8', '9' ]
+    fine_tune: True
     epochs: 50
+    batch_size: 1024

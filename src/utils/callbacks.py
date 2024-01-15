@@ -3,14 +3,14 @@ import tensorflow as tf
 from sklearn.manifold import TSNE
 from matplotlib import pyplot as plt
 
-from metrics.loss import TCVAELoss
+from metrics.loss import Loss
 
 from utils.helper import Helper
 
 
 class CoefficientSchedulerTCVAE(tf.keras.callbacks.Callback):
 
-    def __init__(self, loss: TCVAELoss, epochs, coefficients_raise, coefficients):
+    def __init__(self, loss: Loss, epochs, coefficients_raise, coefficients):
         super(CoefficientSchedulerTCVAE, self).__init__()
 
         self._alpha_cycle = np.arange(epochs) // coefficients_raise * coefficients['alpha']
@@ -18,9 +18,9 @@ class CoefficientSchedulerTCVAE(tf.keras.callbacks.Callback):
         self._gamma_cycle = np.arange(epochs) // coefficients_raise * coefficients['gamma']
 
     def on_epoch_begin(self, epoch, logs=None):
-        self.model._lossEntity.alpha = self._alpha_cycle[epoch]
-        self.model._lossEntity.beta = self._beta_cycle[epoch]
-        self.model._lossEntity.gamma = self._gamma_cycle[epoch]
+        self.model._loss_entity.alpha = self._alpha_cycle[epoch]
+        self.model._loss_entity.beta = self._beta_cycle[epoch]
+        self.model._loss_entity.gamma = self._gamma_cycle[epoch]
 
 
 class LatentVectorSpaceSnapshot(tf.keras.callbacks.Callback):
@@ -90,8 +90,6 @@ class CollapseCallback(tf.keras.callbacks.Callback):
 
         res = self.model.compute_information_gain(self._data)
         self._aggressive = res >= self._temp
-        print(res)
-        print(self._temp)
         if self.aggressive:
             if self.model.decoder.trainable:
                 self.model.decoder.trainable = False

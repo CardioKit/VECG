@@ -3,10 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import tensorflow_datasets as tfds
-import umap
-from pacmap import pacmap
 from sklearn.decomposition import PCA
-from sklearn.manifold import TSNE
 
 
 class dotdict(dict):
@@ -14,6 +11,7 @@ class dotdict(dict):
     __getattr__ = dict.get
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
+
 
 class Helper:
 
@@ -71,18 +69,6 @@ class Helper:
         print('Num GPUs Available: ', len(tf.config.list_physical_devices('GPU')))
 
     @staticmethod
-    def embedding(X, metadata, method, method_name, base_path):
-        embedding = method.fit_transform(X)
-        for label in metadata.keys():
-            if (label != 'ecg') & (label != 'quality'):
-                try:
-                    path_save = base_path + 'embedding_' + method_name + '_' + label
-                    #Visualizations.plot_embedding(embedding, metadata[label], path_save)
-                except Exception as e:
-                    pass
-
-
-    @staticmethod
     def get_labels(dataset):
         df = pd.DataFrame()
         for data in dataset:
@@ -106,16 +92,28 @@ class Helper:
         z = np.concatenate((z_mean, z_log_var, z), axis=2)
 
         if save_path != None:
-            file_path = save_path + '/' + dataset + '_' + str(split) + '.npy'
+            file_path = save_path + '/' + dataset + '_' + str(split) + '_data.npy'
             Helper.generate_paths([save_path])
+            labels.to_csv(save_path + '/' + dataset + '_' + str(split) + '_labels.csv', index=False)
             with open(file_path, 'wb') as f:
                 np.save(f, z)
         return z, labels
 
     @staticmethod
-    def embedd(X):
-        embedding_tsne = TSNE().fit_transform(X)
-        embedding_pca = PCA(n_components=2).fit_transform(X)
-        embedding_umap = umap.UMAP().fit_transform(X)
-        embedding_pacmap = None #pacmap.PaCMAP().fit_transform(X)
-        return embedding_tsne, embedding_pca, embedding_umap, embedding_pacmap
+    def embedding(df, labels, method=PCA(n_components=2)):
+        x = method.fit_transform(df)
+        x = pd.DataFrame(x)
+        x = pd.concat([x, labels], axis=1)
+        return x
+
+    @staticmethod
+    def load_embedding(path, dataset, split):
+        X = np.load(path + '/' + dataset + '/' + split + '/' + dataset + '_' + split + '_data.npy')
+        latent_dim = X.shape[1]
+        y = pd.read_csv(path + '/' + dataset + '/' + split + '/' + dataset + '_' + split + '_labels.csv')
+        df = pd.DataFrame(X[:, :, 0])
+        df = pd.concat([df, y], axis=1)
+        return df, latent_dim
+
+
+

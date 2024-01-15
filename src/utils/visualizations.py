@@ -9,37 +9,12 @@ from utils.helper import Helper
 class Visualizations:
 
     @staticmethod
-    def plot_embedding(embedding, labels, path_eval, loc_scaling=False, column_names=None):
-        """
-        Plots an embedding scatter plot.
+    def plot_embedding(embedding, labels):
+        NotImplementedError
 
-        Parameters:
-            X (numpy.ndarray): 2D array of data points (samples x features).
-            label (numpy.ndarray): Labels or categories for each data point.
-            path (str): File path to save the plot.
-            title (str, optional): Title for the plot.
-            xlabel (str, optional): Label for the x-axis.
-            ylabel (str, optional): Label for the y-axis.
-            cmap (str, optional): Colormap for coloring data points.
-            marker_size (int, optional): Size of markers in the scatter plot.
-            alpha (float, optional): Alpha value for marker transparency.
-
-        Returns:
-            None
-        """
-        if column_names is None:
-            column_names = ['First Axis', 'Second Axis']
-        if loc_scaling:
-            embedding[:, 0] = np.log((embedding[:, 0] - np.min(embedding[:, 0])) + 1.0)
-            embedding[:, 1] = np.log((embedding[:, 1] - np.min(embedding[:, 1])) + 1.0)
-        Helper.generate_paths([path_eval])
-        df = pd.DataFrame(embedding, columns=column_names)
-        for l in labels.columns:
-            df['label'] = labels[l].values
-            plt.figure(figsize=(10, 8))
-            sns.scatterplot(data=df, x=column_names[0], y=column_names[1], hue="label", s=8)
-            plt.savefig(path_eval + '/' + l + '.png')
-            plt.close()
+    @staticmethod
+    def pair_plot(embedding, labels):
+        NotImplementedError
 
     @staticmethod
     def eval_reconstruction(X, reconstruction, indices, path_eval, titles=None, xlabel=None, ylabel=None):
@@ -94,3 +69,10 @@ class Visualizations:
         plt.fill_between(range(0, len(mean)), mean - std, mean + std)
         plt.savefig(path_eval + '.png')
         plt.close()
+
+    @staticmethod
+    def plot_trainings_process(train_progress, metrics):
+        plt.figure(figsize=(10, 5))
+        for k in metrics:
+            sns.lineplot(train_progress, x='epoch', y=k)
+        #ax.set_yscale("log")

@@ -1,5 +1,6 @@
 import pandas as pd
 from sklearn.manifold import TSNE
+from umap import UMAP
 
 from utils.helper import Helper
 from utils.visualizations import Visualizations
@@ -26,7 +27,7 @@ class EvaluateAnomalyDetection():
         self._seed = seed
         self.names = [
             "Nearest Neighbors",
-            # "Linear SVM",
+            "Linear SVM",
             # "RBF SVM",
             # "Gaussian Process",
             "Decision Tree",
@@ -37,8 +38,8 @@ class EvaluateAnomalyDetection():
             # "QDA",
         ]
         self.classifiers = [
-            KNeighborsClassifier(3),
-            # SVC(kernel="linear", C=0.025, random_state=42),
+            KNeighborsClassifier(30),
+            SVC(kernel="linear", C=0.025, random_state=42),
             # SVC(gamma=2, C=1, random_state=42),
             # GaussianProcessClassifier(1.0 * RBF(1.0), random_state=42),
             DecisionTreeClassifier(max_depth=5, random_state=42),
@@ -53,10 +54,10 @@ class EvaluateAnomalyDetection():
 
     def _anomaly_detection(self, X, y, path):
         df = pd.DataFrame()
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=self._seed)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=self._seed)
 
         for name, clf in zip(self.names, self.classifiers):
-            clf = make_pipeline(StandardScaler(), clf)
+            # clf = make_pipeline(StandardScaler(), clf)
             clf.fit(X_train, y_train)
             score = clf.score(X_test, y_test)
             df = pd.concat([df, pd.DataFrame({'method': [str(name)], 'target': [str(name)], 'score': [str(score)]})])
@@ -71,5 +72,7 @@ class EvaluateAnomalyDetection():
                 Helper.generate_paths([path])
                 z, labels = Helper.get_embedding(self._model, name, split=split, save_path=path)
                 embedding_tsne = TSNE().fit_transform(z[:, :, 0])
-                Visualizations.plot_embedding(embedding_tsne, labels, path)
-                self._anomaly_detection(z[:, :, 0], labels['beat'], path)
+                embedding_umap = UMAP().fit_transform(z[:, :, 0])
+                Visualizations.plot_embedding(embedding_tsne, labels, path + '/tsne/')
+                Visualizations.plot_embedding(embedding_umap, labels, path + '/umap/')
+                self._anomaly_detection(z[:, :, 0], labels['rhythm'], path)
