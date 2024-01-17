@@ -4,9 +4,8 @@ import os
 
 import tensorflow_datasets as tfds
 import tensorflow as tf
-from keras.src.callbacks import ReduceLROnPlateau, TerminateOnNaN, CSVLogger, EarlyStopping
+from keras.src.callbacks import ReduceLROnPlateau, TerminateOnNaN, CSVLogger, EarlyStopping, ModelCheckpoint
 from keras.src.optimizers import RMSprop
-from tensorflow.python.keras.callbacks import ModelCheckpoint
 
 from evaluate.embedding import Embedding
 from evaluate.personalization import Personalization
@@ -16,7 +15,7 @@ from utils.helper import Helper
 from model.encoder import Encoder
 from model.decoder import Decoder
 from model.dvae import DVAE
-from metrics.loss import TCVAELoss, HFVAELoss, VAELoss
+from metrics.loss import VAELoss, TCVAELoss, HFVAELoss
 
 os.environ['TFDS_DATA_DIR'] = '/mnt/sdb/home/ml/tensorflow_datasets/'
 
@@ -79,8 +78,7 @@ def main(parameters):
     personalization = Personalization(dvae, base_path)
 
     for dataset in parameters['encode_data']:
-        print(dataset)
-        if parameters['encode_data'][dataset]['fine_tune'] == True:
+        if parameters['encode_data'][dataset]['fine_tune']:
             personalization.fine_tune_evaluate(parameters['encode_data'][dataset])
         else:
             embedding.evaluate_dataset(parameters['encode_data'][dataset])
