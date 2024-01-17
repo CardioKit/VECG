@@ -114,6 +114,3 @@ class Helper:
         df = pd.DataFrame(X[:, :, 0])
         df = pd.concat([df, y], axis=1)
         return df, latent_dim
-
-
-

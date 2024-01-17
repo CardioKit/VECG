@@ -50,18 +50,33 @@ class VAELoss(Loss):
         self._beta = tf.Variable(coefficients['beta'], name="beta", trainable=False)
         self._dist = dist
 
-    def loss(self, reconstruction, x, mu, log_var, z):
-        recon_loss = tf.reduce_mean(tf.keras.losses.mean_absolute_error(x, reconstruction))
-        logpz = tf.reduce_mean(self._dist(0.0, 1.0).log_prob(z))
-        logqz_x = tf.reduce_mean(self._dist(mu, tf.exp(log_var)).log_prob(z))
+    @property
+    def beta(self):
+        return self._beta
 
-        loss = recon_loss + tf.multiply(self._beta, (logpz - logqz_x))
+    @beta.setter
+    def beta(self, value):
+        self._beta.assign(value)
+
+    def loss(self, reconstruction, x, mu, log_var, z):
+        recon_loss = tf.reduce_sum(tf.keras.losses.mean_absolute_error(x, reconstruction))
+
+        #logpz = tf.reduce_mean(self._dist(0.0, 1.0).log_prob(z))
+        #logqz_x = tf.reduce_mean(self._dist(mu, tf.exp(log_var)).log_prob(z))
+        #kloss = recon_loss + tf.multiply(self._beta, (logpz - logqz_x))
+
+        kl_loss = -0.5 * (1 + log_var - tf.square(mu) - tf.exp(log_var))
+        kl_loss = tf.reduce_sum(tf.reduce_sum(kl_loss, axis=1))
+        loss = recon_loss + tf.multiply(self._beta, kl_loss)
 
         return {
             "loss": loss,
             "recon": recon_loss,
-            "log p(z)": logpz,
-            "log q(z|x)": logqz_x,
+            #"log p(z)": logpz,
+            #"log q(z|x)": logqz_x,
+            #"kloss": kloss,
+            "kl_loss": kl_loss,
+            "beta": self._beta,
         }
 
 

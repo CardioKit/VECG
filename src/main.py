@@ -8,14 +8,15 @@ from keras.src.callbacks import ReduceLROnPlateau, TerminateOnNaN, CSVLogger, Ea
 from keras.src.optimizers import RMSprop
 from tensorflow.python.keras.callbacks import ModelCheckpoint
 
-from evaluate.evaluate import Evaluation
+from evaluate.embedding import Embedding
+from evaluate.personalization import Personalization
 from utils.callbacks import ReconstructionPlot, CoefficientSchedulerTCVAE
 from utils.helper import Helper
 
 from model.encoder import Encoder
 from model.decoder import Decoder
 from model.dvae import DVAE
-from metrics.loss import TCVAELoss, HFVAELoss
+from metrics.loss import TCVAELoss, HFVAELoss, VAELoss
 
 os.environ['TFDS_DATA_DIR'] = '/mnt/sdb/home/ml/tensorflow_datasets/'
 
@@ -36,22 +37,28 @@ def main(parameters):
     ######################################################
     # DATA LOADING
     ######################################################
-    data_train = tfds.load(parameters['train_dataset']['name'], split=[parameters['train_dataset']['split']], shuffle_files=True)
-    train = data_train[0].shuffle(parameters['train_dataset']['shuffle_size']).batch(parameters['train_dataset']['batch_size']).prefetch(tf.data.AUTOTUNE)
-    data_val = tfds.load(parameters['val_dataset']['name'], split=[parameters['val_dataset']['split']], shuffle_files=True)
-    val = data_val[0].shuffle(parameters['val_dataset']['shuffle_size']).batch(parameters['val_dataset']['batch_size']).prefetch(tf.data.AUTOTUNE)
+    data_train = tfds.load(parameters['train_dataset']['name'], split=[parameters['train_dataset']['split']],
+                           shuffle_files=True)
+    train = data_train[0].shuffle(parameters['train_dataset']['shuffle_size']).batch(
+        parameters['train_dataset']['batch_size']).prefetch(tf.data.AUTOTUNE)
+    data_val = tfds.load(parameters['val_dataset']['name'], split=[parameters['val_dataset']['split']],
+                         shuffle_files=True)
+    val = data_val[0].shuffle(parameters['val_dataset']['shuffle_size']).batch(
+        parameters['val_dataset']['batch_size']).prefetch(tf.data.AUTOTUNE)
 
     ######################################################
     # MACHINE LEARNING
     ######################################################
-    loss = TCVAELoss(len(data_train[0]), parameters['coefficients'])
+    loss = VAELoss(len(data_train[0]), parameters['coefficients'])
     callbacks = [
         ReduceLROnPlateau(monitor='recon', factor=0.05, patience=50, min_lr=0.000001),
         # TerminateOnNaN(),
         CSVLogger(base_path + 'training/training_progress.csv'),
-        CoefficientSchedulerTCVAE(loss, parameters['epochs'], parameters['coefficients_raise'], parameters['coefficients']),
+        CoefficientSchedulerTCVAE(loss, parameters['epochs'], parameters['coefficients_raise'],
+                                  parameters['coefficients']),
         # ModelCheckpoint(filepath=base_path + 'model/', monitor='loss', save_best_only=True, verbose=0),
-        ReconstructionPlot(train, parameters['index_tracked_sample'], base_path + 'training/reconstruction/', period=parameters['period_reconstruction_plot']),
+        ReconstructionPlot(train, parameters['index_tracked_sample'], base_path + 'training/reconstruction/',
+                           period=parameters['period_reconstruction_plot']),
         # CollapseCallback(train),
         EarlyStopping(monitor="val_loss", patience=parameters['early_stopping'])
     ]
@@ -68,9 +75,15 @@ def main(parameters):
     ######################################################
     # EVALUATION
     ######################################################
-    eval = Evaluation(dvae, base_path + 'evaluation/')
-    for dataset in parameters['eval_data'].keys():
-        eval.evaluate_dataset(parameters['eval_data'][dataset])
+    embedding = Embedding(dvae, base_path)
+    personalization = Personalization(dvae, base_path)
+
+    for dataset in parameters['encode_data']:
+        print(dataset)
+        if parameters['encode_data'][dataset]['fine_tune'] == True:
+            personalization.fine_tune_evaluate(parameters['encode_data'][dataset])
+        else:
+            embedding.evaluate_dataset(parameters['encode_data'][dataset])
 
 
 if __name__ == '__main__':

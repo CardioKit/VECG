@@ -1,14 +1,15 @@
 import tensorflow as tf
+import keras
 
 
-class Encoder(tf.keras.Model):
+class Encoder(keras.Model):
 
     def __init__(self, latent_dim):
         super(Encoder, self).__init__()
         self._latent_dim = latent_dim
 
-        self.encoder_inputs = tf.keras.Input(shape=(500,))
-        self.x = tf.keras.layers.Reshape((500, 1))(self.encoder_inputs)
+        self.encoder_inputs = keras.Input(shape=(500,))
+        self.x = keras.layers.Reshape((500, 1))(self.encoder_inputs)
         self.x = self.conv_block_enc(self.x, 32, 5, 1)
         self.x = self.conv_block_enc(self.x, 32, 5, 16)
         self.x = self.conv_block_enc(self.x, 16, 5, 32)

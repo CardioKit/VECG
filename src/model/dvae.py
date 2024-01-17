@@ -27,8 +27,8 @@ class DVAE(tf.keras.Model):
 
     def get_config(self):
         config = super().get_config()
-        config['encoder'] = self._encoder
-        config['decoder'] = self._decoder
+        config['encoder'] = keras.saving.serialize_keras_object(self._encoder)
+        config['decoder'] = keras.saving.serialize_keras_object(self._decoder)
         config['loss_entity'] = self._loss_entity
         return config
 
