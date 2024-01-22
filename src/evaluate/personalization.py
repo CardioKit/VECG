@@ -15,7 +15,7 @@ class Personalization:
         name = dataset['name']
         epochs = dataset['epochs']
         for split in dataset['splits']:
-            path = self._path_save + name + '_' + split + '/'
+            path = self._path_save + name + '/' + split + '/'
             data_train = tfds.load(name, split=[split])
             train = data_train[0].batch(batch_size).prefetch(tf.data.AUTOTUNE)
             Helper.generate_paths([path])
@@ -29,4 +29,4 @@ class Personalization:
                 callbacks=CSVLogger(path + '/training_progress.csv'),
             )
 
-            _, _ = Helper.get_embedding(model_fine_tune, name, split, save_path=path)
+            _, _ = Helper.get_embedding(self._model, name, split, save_path=path)

@@ -72,4 +72,4 @@ class Visualizations:
         plt.figure(figsize=(10, 5))
         for k in metrics:
             sns.lineplot(train_progress, x='epoch', y=k)
-        #ax.set_yscale("log")
+        # ax.set_yscale("log")

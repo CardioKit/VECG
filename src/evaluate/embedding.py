@@ -5,7 +5,7 @@ class Embedding:
 
     def __init__(self, model, path_save):
         self._model = model
-        self._path_save = path_save + 'embedding/'
+        self._path_save = path_save + 'evaluation/embedding/'
 
     def evaluate_dataset(self, dataset):
         name = dataset['name']

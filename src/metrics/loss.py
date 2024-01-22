@@ -6,12 +6,10 @@ import tensorflow_probability as tfp
 tfd = tfp.distributions
 
 
-class Loss(ABC):
-    @abstractmethod
-    def loss(self, reconstruction, x, mu, log_var, z):
-        pass
+class Loss:
 
-    def log_importance_weight_matrix_iso(self, batch_size, dataset_size):
+    @staticmethod
+    def log_importance_weight_matrix_iso(batch_size, dataset_size):
         """
         CRE: TF adapted version of (https://github.com/rtqichen/beta-tcvae/blob/master/vae_quant.py)
         """
@@ -27,7 +25,8 @@ class Loss(ABC):
 
         return tf.math.log(W)
 
-    def log_importance_weight_matrix(self, batch_size, dataset_size):
+    @staticmethod
+    def log_importance_weight_matrix(batch_size, dataset_size):
         N = tf.cast(tf.constant(dataset_size), dtype=tf.float32)
         B = tf.cast(tf.math.subtract(batch_size, 1), dtype=tf.float32)
         W = tf.multiply(tf.ones([batch_size, batch_size]),

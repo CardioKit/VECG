@@ -108,9 +108,15 @@ class Helper:
 
     @staticmethod
     def load_embedding(path, dataset, split):
-        X = np.load(path + '/' + dataset + '/' + split + '/' + dataset + '_' + split + '_data.npy')
+        X = np.load(path + dataset + '/' + split + '/' + dataset + '_' + split + '_data.npy')
         latent_dim = X.shape[1]
         y = pd.read_csv(path + '/' + dataset + '/' + split + '/' + dataset + '_' + split + '_labels.csv')
         df = pd.DataFrame(X[:, :, 0])
         df = pd.concat([df, y], axis=1)
         return df, latent_dim
+
+    @staticmethod
+    def load_dataset(dataset):
+        temp = tfds.load(dataset['name'],split=[dataset['split']], shuffle_files=True)
+        data = temp[0].shuffle(dataset['shuffle_size']).batch(dataset['batch_size']).prefetch(tf.data.AUTOTUNE)
+        return data, len(temp[0])
