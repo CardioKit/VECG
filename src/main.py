@@ -48,7 +48,7 @@ def main(parameters):
         #ModelCheckpoint(filepath=base_path + 'model/', monitor='loss', save_best_only=True, verbose=0),
         ReconstructionPlot(train, parameters['index_tracked_sample'], base_path + 'training/reconstruction/',
                            period=parameters['period_reconstruction_plot']),
-        CollapseCallback(val),
+        #CollapseCallback(val),
         EarlyStopping(monitor="val_loss", patience=parameters['early_stopping'])
     ]
 
