@@ -1,22 +1,27 @@
 train_dataset:
-  name: 'zheng'
+  name:
+  - synth
+  - zheng
+  - ptb
+  - medalcare
   split: 'train'
   shuffle_size: 1024
   batch_size: 1024
 val_dataset:
-  name: 'zheng'
+  name:
+  - zheng
   split: 'train'
   shuffle_size: 1024
   batch_size: 1024
 save_results_path: ../results/
 seed: 42
-epochs: 50
-latent_dimension: 3
+epochs: 200
+latent_dimension: 8
 learning_rate: 0.001
 coefficients:
   alpha: 1.0
-  beta: 3.0
-  gamma: 3.0
+  beta: 64.0
+  gamma: 1.0
 coefficients_raise: 20
 early_stopping: 50000
 period_reconstruction_plot: 20

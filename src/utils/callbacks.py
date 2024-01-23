@@ -53,37 +53,15 @@ class CollapseCallback(tf.keras.callbacks.Callback):
         super().__init__()
         self._aggressive = aggressive
         self._data = data
-        self._temp = -np.inf
-        iterator = iter(data)
-        batch = next(iterator)
+        self._last_value = -np.inf
+        batch = next(iter(data))
         self._ecg = batch['ecg']['I']
 
     def on_epoch_begin(self, epoch, logs=None):
         res = self.model.compute_information_gain(self._ecg)
-        self.aggressive = res >= self._temp
-        if self.aggressive:
-            if self.model._decoder.trainable:
-                self.model._decoder.trainable = False
-            else:
-                self.model._encoder.trainable = True
-                self.model._decoder.trainable = False
-            self._temp = res
+        aggr = res >= self._last_value
+        if aggr:
+            self.model._decoder.trainable = False
         else:
-            self.model._encoder.trainable = True
             self.model._decoder.trainable = True
-
-    def on_epoch_end(self, epoch, logs=None):
-
-        res = self.model.compute_information_gain(self._ecg)
-        tf.print(res)
-        self._aggressive = res >= self._temp
-        if self.aggressive:
-            if self.model._decoder.trainable:
-                self.model._decoder.trainable = False
-            else:
-                self.model._encoder.trainable = True
-                self.model._decoder.trainable = False
-            self.temp = res
-        else:
-            self.model._encoder.trainable = True
-            self.model._decoder.trainable = True
+        self._last_value = res

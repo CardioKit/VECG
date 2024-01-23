@@ -34,19 +34,20 @@ def main(parameters):
     ######################################################
     # DATA LOADING
     ######################################################
-    train, size_train = Helper.load_dataset(parameters['train_dataset'])
-    val, _ = Helper.load_dataset(parameters['val_dataset'])
+    #train, size_train = Helper.load_dataset(parameters['train_dataset'])
+    train, size_train = Helper.load_multiple_datasets(parameters['train_dataset'])
+    val, size_val = Helper.load_multiple_datasets(parameters['val_dataset'])
 
     ######################################################
     # MACHINE LEARNING
     ######################################################
     callbacks = [
-        ReduceLROnPlateau(monitor='recon', factor=0.05, patience=50, min_lr=0.000001),
+        ReduceLROnPlateau(monitor='recon', factor=0.05, patience=20, min_lr=0.000001),
         TerminateOnNaN(),
         CSVLogger(base_path + 'training/training_progress.csv'),
         CoefficientScheduler(parameters['epochs'], parameters['coefficients']),
-        #ModelCheckpoint(filepath=base_path + 'model/', monitor='loss', save_best_only=True, verbose=0),
-        ReconstructionPlot(train, parameters['index_tracked_sample'], base_path + 'training/reconstruction/',
+        ModelCheckpoint(filepath=base_path + 'model/', monitor='loss', save_best_only=True, verbose=0),
+        ReconstructionPlot(train[0], parameters['index_tracked_sample'], base_path + 'training/reconstruction/',
                            period=parameters['period_reconstruction_plot']),
         #CollapseCallback(val),
         EarlyStopping(monitor="val_loss", patience=parameters['early_stopping'])
@@ -58,8 +59,8 @@ def main(parameters):
     vae = TCVAE(encoder, decoder, parameters['coefficients'], size_train)
     vae.compile(optimizer=RMSprop(learning_rate=parameters['learning_rate']))
     vae.fit(
-        Helper.data_generator(train), steps_per_epoch=len(train),
-        validation_data=Helper.data_generator(val), validation_steps=len(val),
+        Helper.data_generator(train), steps_per_epoch=size_train,
+        validation_data=Helper.data_generator(val), validation_steps=size_val,
         epochs=parameters['epochs'], callbacks=callbacks, verbose=1,
     )
 

@@ -26,14 +26,20 @@ class Helper:
 
     @staticmethod
     def data_generator(dataset, method='continue'):
-        iterator = iter(dataset)
+        k = 0
+        n = len(dataset)
+        iterator = iter(dataset[k])
         while True:
             try:
                 batch = next(iterator)
                 yield batch['ecg']['I']
             except StopIteration:
                 if method == 'continue':
-                    iterator = iter(dataset)
+                    if k == n - 1:
+                        k = 0
+                    else:
+                        k = k + 1
+                    iterator = iter(dataset[k])
                 elif method == 'stop':
                     return
 
@@ -83,7 +89,7 @@ class Helper:
         data_train = tfds.load(dataset, split=[split])
         train = data_train[0].batch(batch_size).prefetch(tf.data.AUTOTUNE)
         labels = Helper.get_labels(train)
-        z_mean, z_log_var = model._encoder.predict(Helper.data_generator(train, method='stop'))
+        z_mean, z_log_var = model._encoder.predict(Helper.data_generator([train], method='stop'))
         z = model.reparameterize(z_mean, z_log_var)
 
         z_mean = np.expand_dims(z_mean, axis=2)
@@ -114,6 +120,17 @@ class Helper:
         df = pd.DataFrame(X[:, :, 0])
         df = pd.concat([df, y], axis=1)
         return df, latent_dim
+
+    @staticmethod
+    def load_multiple_datasets(datasets):
+        size = 0
+        data_list = []
+        for i, k in enumerate(datasets['name']):
+            temp = tfds.load(k, split=[datasets['split']], shuffle_files=True)
+            data = temp[0].shuffle(datasets['shuffle_size']).batch(datasets['batch_size']).prefetch(tf.data.AUTOTUNE)
+            size = size + len(data)
+            data_list.append(data)
+        return data_list, size
 
     @staticmethod
     def load_dataset(dataset):

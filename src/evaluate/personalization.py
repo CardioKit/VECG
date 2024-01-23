@@ -23,7 +23,7 @@ class Personalization:
             #model_fine_tune = tf.keras.models.clone_model(self._model)
             #model_fine_tune.compile(optimizer=RMSprop(learning_rate=0.001))
             self._model.fit(
-                Helper.data_generator(train),
+                Helper.data_generator([train]),
                 steps_per_epoch=len(train),
                 epochs=epochs,
                 callbacks=CSVLogger(path + '/training_progress.csv'),
