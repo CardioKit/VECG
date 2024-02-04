@@ -1,6 +1,9 @@
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 import seaborn as sns
+from neurokit2.signal import signal_smooth
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 
 class Visualizations:
@@ -58,18 +61,79 @@ class Visualizations:
         plt.close()
 
     @staticmethod
-    def eval_dimensions(res, path_eval):
-        mean = np.mean(res, axis=0)
-        std = np.std(res, axis=0)
-        plt.figure(figsize=(15, 5))
+    def eval_dimensions(df, ld, model, dimension, path, l_bound=-10.0, u_bound=10.0, num_samples=1000):
+
+        mean_values, std_values = np.mean(df.iloc[:, :ld], axis=0), np.std(df.iloc[:, :ld], axis=0)
+        result_matrix = np.tile(mean_values, (num_samples, 1))
+        result_matrix[:, dimension] = np.linspace(l_bound, u_bound, num_samples)
+        X = model.decode(result_matrix)
+
+        M = np.zeros((X.shape))
+        for k, _ in enumerate(X):
+            M[k] = signal_smooth(X[k].numpy())
+
+        mean = np.mean(M, axis=0)
+        std = np.std(M, axis=0)
+        fig = plt.figure(figsize=(15, 5))
+        fig.tight_layout()
         plt.plot(range(0, len(mean)), mean, 'k-')
         plt.fill_between(range(0, len(mean)), mean - std, mean + std)
-        plt.savefig(path_eval + '.png')
-        plt.close()
+        plt.title("ECG reconstruction by toggling dimension " + str(dimension) + ".")
+        fig.savefig(path, dpi=300)
 
     @staticmethod
     def plot_trainings_process(train_progress, metrics):
-        plt.figure(figsize=(10, 5))
+        fig = plt.figure(figsize=(10, 5))
+        fig.tight_layout()
         for k in metrics:
-            sns.lineplot(train_progress, x='epoch', y=k)
-        # ax.set_yscale("log")
+            ax = sns.lineplot(train_progress, x='epoch', y=k)
+            ax.set_yscale("log")
+
+    @staticmethod
+    def plot_variations(df, ld, model, dimension=0, num_rows=1000):
+        mean_values = np.mean(df.iloc[:, :ld], axis=0)
+        std_values = np.std(df.iloc[:, :ld], axis=0)
+        result_matrix = np.tile(mean_values, (num_rows, 1))
+        result_matrix[:, dimension] = np.linspace(-10.0, 10.0, num_rows)
+        X = model.decode(result_matrix)
+
+        reconstruct = pd.DataFrame()
+        reconstruct['values'] = X.numpy().flatten()
+
+        original_array = list(range(0, 500))
+        desired_length = len(reconstruct)
+        repeating_array = [original_array[i % len(original_array)] for i in range(desired_length)]
+
+        reconstruct['timestamp'] = repeating_array
+        plt.figure(figsize=(15, 5))
+        sns.lineplot(data=reconstruct, x="timestamp", y="values")
+
+    @staticmethod
+    def plot_embedding_slice(df, dim_x, dim_y, hue, title_legend, path):
+        fig = plt.figure(figsize=(10, 10))
+        fig.tight_layout()
+        ax = sns.scatterplot(
+            data=df, x=dim_x, y=dim_y, hue=hue,
+        )
+        ax.set(
+            xlabel='Dimension ' + str(dim_x),
+            ylabel='Dimension ' + str(dim_y),
+            title="Slice through the embedding space.",
+        )
+        plt.legend(title=title_legend)
+        plt.tight_layout()
+        plt.show()
+        fig.savefig(path, dpi=300)
+
+    @staticmethod
+    def plot_confustion_matrix(X_train, X_test, y_train, y_test, predictor, path):
+        predictor.fit(X_train, y_train)
+        predictions = predictor.predict(X_test.fillna(0))
+        cm = confusion_matrix(y_test, predictions, labels=predictor.classes_)
+        fig = plt.figure(figsize=(15, 15))
+        fig.tight_layout()
+        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=predictor.classes_)
+        disp.plot()
+        plt.show()
+        fig.savefig(path, dpi=300)
+        return cm

@@ -2,6 +2,7 @@ import argparse
 import datetime
 import os
 
+import numpy as np
 import tensorflow as tf
 from keras.src.callbacks import ReduceLROnPlateau, TerminateOnNaN, CSVLogger, EarlyStopping, ModelCheckpoint
 from keras.src.optimizers import RMSprop
@@ -34,7 +35,6 @@ def main(parameters):
     ######################################################
     # DATA LOADING
     ######################################################
-    #train, size_train = Helper.load_dataset(parameters['train_dataset'])
     train, size_train = Helper.load_multiple_datasets(parameters['train_dataset'])
     val, size_val = Helper.load_multiple_datasets(parameters['val_dataset'])
 
@@ -55,7 +55,6 @@ def main(parameters):
 
     encoder = Encoder(parameters['latent_dimension'])
     decoder = Decoder(parameters['latent_dimension'])
-
     vae = TCVAE(encoder, decoder, parameters['coefficients'], size_train)
     vae.compile(optimizer=RMSprop(learning_rate=parameters['learning_rate']))
     vae.fit(
@@ -79,7 +78,7 @@ def main(parameters):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
-        prog='VECG', description='Representational Learning of ECG using TC-VAE',
+        prog='VECG', description='Representational Learning of ECG using disentangling VAE',
     )
     parser.add_argument(
         '-p', '--path_config', type=str, default='./params.yml',
@@ -88,4 +87,18 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     parameters = Helper.load_yaml_file(args.path_config)
+
+    print(type(parameters['coefficients']['alpha']))
+
     main(parameters)
+
+    #for latent_dim in [4, 8, 16, 24]:
+    #    for alpha in [0.1, 0.5]:
+    #        for beta in [0.5, 1.0, 4.0]:
+    #            for gamma in [0.1, 0.5, 1.0]:
+    #                parameters['latent_dimension'] = latent_dim
+    #                parameters['coefficients']['alpha'] = float(alpha)
+    #                parameters['coefficients']['beta'] = float(beta)
+    #                parameters['coefficients']['gamma'] = float(gamma)
+    #                print(parameters)
+    #                main(parameters)

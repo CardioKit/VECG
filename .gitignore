@@ -166,3 +166,4 @@ cython_debug/
 /mlruns/
 /results/
 /src/mlruns/
+/test/

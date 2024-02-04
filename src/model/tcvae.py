@@ -1,5 +1,8 @@
 from model.vae import VAE
 import tensorflow as tf
+import tensorflow_probability as tfp
+
+tfd = tfp.distributions
 
 
 class TCVAE(VAE):
@@ -33,7 +36,6 @@ class TCVAE(VAE):
     @gamma.setter
     def gamma(self, value):
         self._gamma.assign(value)
-
 
     def _loss(self, reconstruction, x, mu, log_var, z):
         size_batch = tf.shape(x)[0]
