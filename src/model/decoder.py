@@ -8,10 +8,11 @@ class Decoder(tf.keras.Model):
         self._latent_dim = latent_dim
 
         self.latent_inputs = keras.Input(shape=(latent_dim,))
-        self.x = tf.keras.layers.Dense(20)(self.latent_inputs)
+        self.x = tf.keras.layers.Dense(16)(self.latent_inputs)
+        self.x = tf.keras.layers.Dense(20)(self.x)
         self.x = tf.keras.layers.Reshape((5, 4))(self.x)
-        self.x = tf.keras.layers.Conv1DTranspose(filters=256, kernel_size=5, strides=1, padding='same')(self.x)
-        self.x = tf.keras.layers.LeakyReLU()(self.x)
+        #self.x = tf.keras.layers.Conv1DTranspose(filters=256, kernel_size=5, strides=1, padding='same')(self.x)
+        #self.x = tf.keras.layers.LeakyReLU()(self.x)
         self.x = tf.keras.layers.Conv1DTranspose(filters=128, kernel_size=5, strides=2, padding='same')(self.x)
         self.x = tf.keras.layers.LeakyReLU()(self.x)
         self.x = tf.keras.layers.Conv1DTranspose(filters=64, kernel_size=5, strides=2, padding='same')(self.x)

@@ -2,7 +2,6 @@ import argparse
 import datetime
 import os
 
-import numpy as np
 import tensorflow as tf
 from keras.src.callbacks import ReduceLROnPlateau, TerminateOnNaN, CSVLogger, EarlyStopping, ModelCheckpoint
 from keras.src.optimizers import RMSprop
@@ -41,7 +40,9 @@ def main(parameters):
     ######################################################
     # MACHINE LEARNING
     ######################################################
+
     callbacks = [
+        tf.keras.callbacks.TensorBoard(log_dir='../logs/'),
         ReduceLROnPlateau(monitor='recon', factor=0.05, patience=20, min_lr=0.000001),
         TerminateOnNaN(),
         CSVLogger(base_path + 'training/training_progress.csv'),
@@ -88,17 +89,16 @@ if __name__ == '__main__':
     args = parser.parse_args()
     parameters = Helper.load_yaml_file(args.path_config)
 
-    print(type(parameters['coefficients']['alpha']))
-
     main(parameters)
 
-    #for latent_dim in [4, 8, 16, 24]:
-    #    for alpha in [0.1, 0.5]:
-    #        for beta in [0.5, 1.0, 4.0]:
-    #            for gamma in [0.1, 0.5, 1.0]:
-    #                parameters['latent_dimension'] = latent_dim
-    #                parameters['coefficients']['alpha'] = float(alpha)
-    #                parameters['coefficients']['beta'] = float(beta)
-    #                parameters['coefficients']['gamma'] = float(gamma)
-    #                print(parameters)
-    #                main(parameters)
+    '''
+    for latent_dim in [8, 16]:
+        for alpha in [0.5]:
+            for beta in [1.0, 4.0, 8.0]:
+                for gamma in [0.1, 1.0, 2.0]:
+                    parameters['latent_dimension'] = latent_dim
+                    parameters['coefficients']['alpha'] = float(alpha)
+                    parameters['coefficients']['beta'] = float(beta)
+                    parameters['coefficients']['gamma'] = float(gamma)
+                    main(parameters)
+    '''

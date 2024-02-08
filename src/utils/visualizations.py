@@ -61,9 +61,9 @@ class Visualizations:
         plt.close()
 
     @staticmethod
-    def eval_dimensions(df, ld, model, dimension, path, l_bound=-10.0, u_bound=10.0, num_samples=1000):
+    def eval_dimensions(ld, model, dimension, path, df=None, l_bound=-10.0, u_bound=10.0, num_samples=1000):
 
-        mean_values, std_values = np.mean(df.iloc[:, :ld], axis=0), np.std(df.iloc[:, :ld], axis=0)
+        mean_values = np.zeros(ld).astype(np.float32) #, std_values = np.mean(df.iloc[:, :ld], axis=0), np.std(df.iloc[:, :ld], axis=0)
         result_matrix = np.tile(mean_values, (num_samples, 1))
         result_matrix[:, dimension] = np.linspace(l_bound, u_bound, num_samples)
         X = model.decode(result_matrix)
@@ -126,14 +126,14 @@ class Visualizations:
         fig.savefig(path, dpi=300)
 
     @staticmethod
-    def plot_confustion_matrix(X_train, X_test, y_train, y_test, predictor, path):
-        predictor.fit(X_train, y_train)
+    def plot_confustion_matrix(X_train, X_test, y_train, y_test, predictor, path, cmap='Greens'):
+        predictor.fit(X_train.fillna(0), y_train)
         predictions = predictor.predict(X_test.fillna(0))
         cm = confusion_matrix(y_test, predictions, labels=predictor.classes_)
         fig = plt.figure(figsize=(15, 15))
         fig.tight_layout()
-        disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=predictor.classes_)
-        disp.plot()
+        disp = ConfusionMatrixDisplay(confusion_matrix=np.round(cm / np.sum(cm, axis=0), 2), display_labels=predictor.classes_)
+        disp.plot(cmap=cmap)
         plt.show()
         fig.savefig(path, dpi=300)
         return cm

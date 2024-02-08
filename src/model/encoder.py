@@ -10,7 +10,7 @@ class Encoder(keras.Model):
 
         self.encoder_inputs = keras.Input(shape=(500,))
         self.x = keras.layers.Reshape((500, 1))(self.encoder_inputs)
-        self.x = self.conv_block_enc(self.x, 64, 5, 1)
+        self.x = self.conv_block_enc(self.x, 64, 5, 4)
         self.x = self.conv_block_enc(self.x, 32, 5, 16)
         self.x = self.conv_block_enc(self.x, 16, 5, 32)
         self.x = self.conv_block_enc(self.x, 8, 5, 64)
