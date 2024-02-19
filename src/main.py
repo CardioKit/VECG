@@ -6,8 +6,6 @@ import tensorflow as tf
 from keras.src.callbacks import ReduceLROnPlateau, TerminateOnNaN, CSVLogger, EarlyStopping, ModelCheckpoint
 from keras.src.optimizers import RMSprop
 
-from evaluate.embedding import Embedding
-from evaluate.personalization import Personalization
 from utils.callbacks import ReconstructionPlot, CoefficientScheduler, CollapseCallback
 from utils.helper import Helper
 
@@ -15,6 +13,7 @@ from model.encoder import Encoder
 from model.decoder import Decoder
 from model.tcvae import TCVAE
 
+# TODO: Set path to the location of the tensorflow datasets
 os.environ['TFDS_DATA_DIR'] = '/mnt/sdb/home/ml/tensorflow_datasets/'
 
 
@@ -26,7 +25,8 @@ def main(parameters):
     start_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     base_path = parameters['save_results_path'] + start_time + '/'
     Helper.generate_paths(
-        [base_path, base_path + 'evaluation/', base_path + 'model/', base_path + 'training/reconstruction/']
+        [base_path, base_path + 'evaluation/', base_path + 'model_best/', base_path + 'model_final/',
+         base_path + 'training/reconstruction/', base_path + 'training/collapse/']
     )
     Helper.write_json_file(parameters, base_path + 'params.json')
     Helper.print_available_gpu()
@@ -40,18 +40,15 @@ def main(parameters):
     ######################################################
     # MACHINE LEARNING
     ######################################################
-
     callbacks = [
-        tf.keras.callbacks.TensorBoard(log_dir='../logs/'),
-        ReduceLROnPlateau(monitor='recon', factor=0.05, patience=20, min_lr=0.000001),
         TerminateOnNaN(),
+        CollapseCallback(val, base_path + 'training/collapse/'),
         CSVLogger(base_path + 'training/training_progress.csv'),
-        CoefficientScheduler(parameters['epochs'], parameters['coefficients']),
-        ModelCheckpoint(filepath=base_path + 'model/', monitor='loss', save_best_only=True, verbose=0),
-        ReconstructionPlot(train[0], parameters['index_tracked_sample'], base_path + 'training/reconstruction/',
-                           period=parameters['period_reconstruction_plot']),
-        #CollapseCallback(val),
-        EarlyStopping(monitor="val_loss", patience=parameters['early_stopping'])
+        EarlyStopping(monitor="val_loss", patience=parameters['early_stopping']),
+        CoefficientScheduler(parameters['epochs'], parameters['coefficients'], parameters['coefficients_raise']),
+        ReduceLROnPlateau(monitor='recon', factor=0.05, patience=20, min_lr=0.000001),
+        ModelCheckpoint(filepath=base_path + 'model_best/', monitor='loss', save_best_only=True, verbose=0),
+        ReconstructionPlot(train[0], base_path + 'training/reconstruction/', parameters['reconstruction']),
     ]
 
     encoder = Encoder(parameters['latent_dimension'])
@@ -64,17 +61,7 @@ def main(parameters):
         epochs=parameters['epochs'], callbacks=callbacks, verbose=1,
     )
 
-    ######################################################
-    # EVALUATION
-    ######################################################
-    embedding = Embedding(vae, base_path)
-    personalization = Personalization(vae, base_path)
-
-    for dataset in parameters['encode_data']:
-        if parameters['encode_data'][dataset]['fine_tune']:
-            personalization.fine_tune_evaluate(parameters['encode_data'][dataset])
-        else:
-            embedding.evaluate_dataset(parameters['encode_data'][dataset])
+    vae.save(base_path + 'model_final/')
 
 
 if __name__ == '__main__':
@@ -89,16 +76,44 @@ if __name__ == '__main__':
     args = parser.parse_args()
     parameters = Helper.load_yaml_file(args.path_config)
 
-    main(parameters)
+    combinations = [
+        {'latent_dimension': 8,  'coefficients': {'alpha': 0.01, 'beta': 0.04, 'gamma': 0.01}},
+        {'latent_dimension': 8,  'coefficients': {'alpha': 0.05, 'beta': 0.2, 'gamma': 0.05}},
+        {'latent_dimension': 8,  'coefficients': {'alpha': 0.1, 'beta': 0.4, 'gamma': 0.1}},
+        {'latent_dimension': 8,  'coefficients': {'alpha': 0.2, 'beta': 0.8, 'gamma': 0.2}},
+        {'latent_dimension': 8,  'coefficients': {'alpha': 0.3, 'beta': 1.2, 'gamma': 0.3}},
+        {'latent_dimension': 8,  'coefficients': {'alpha': 0.4, 'beta': 1.6, 'gamma': 0.4}},
+        {'latent_dimension': 8,  'coefficients': {'alpha': 0.5, 'beta': 2.0, 'gamma': 0.5}},
+        {'latent_dimension': 12, 'coefficients': {'alpha': 0.01, 'beta': 0.04, 'gamma': 0.01}},
+        {'latent_dimension': 12, 'coefficients': {'alpha': 0.05, 'beta': 0.2, 'gamma': 0.05}},
+        {'latent_dimension': 12, 'coefficients': {'alpha': 0.1, 'beta': 0.4, 'gamma': 0.1}},
+        {'latent_dimension': 12, 'coefficients': {'alpha': 0.2, 'beta': 0.8, 'gamma': 0.2}},
+        {'latent_dimension': 12, 'coefficients': {'alpha': 0.3, 'beta': 1.2, 'gamma': 0.3}},
+        {'latent_dimension': 12, 'coefficients': {'alpha': 0.4, 'beta': 1.6, 'gamma': 0.4}},
+        {'latent_dimension': 12, 'coefficients': {'alpha': 0.5, 'beta': 2.0, 'gamma': 0.5}},
+        {'latent_dimension': 16, 'coefficients': {'alpha': 0.01, 'beta': 0.04, 'gamma': 0.01}},
+        {'latent_dimension': 16, 'coefficients': {'alpha': 0.05, 'beta': 0.2, 'gamma': 0.05}},
+        {'latent_dimension': 16, 'coefficients': {'alpha': 0.1, 'beta': 0.4, 'gamma': 0.1}},
+        {'latent_dimension': 16, 'coefficients': {'alpha': 0.2, 'beta': 0.8, 'gamma': 0.2}},
+        {'latent_dimension': 16, 'coefficients': {'alpha': 0.3, 'beta': 1.2, 'gamma': 0.3}},
+        {'latent_dimension': 16, 'coefficients': {'alpha': 0.4, 'beta': 1.6, 'gamma': 0.4}},
+        {'latent_dimension': 16, 'coefficients': {'alpha': 0.5, 'beta': 2.0, 'gamma': 0.5}},
+        {'latent_dimension': 20, 'coefficients': {'alpha': 0.01, 'beta': 0.04, 'gamma': 0.01}},
+        {'latent_dimension': 20, 'coefficients': {'alpha': 0.05, 'beta': 0.2, 'gamma': 0.05}},
+        {'latent_dimension': 20, 'coefficients': {'alpha': 0.1, 'beta': 0.4, 'gamma': 0.1}},
+        {'latent_dimension': 20, 'coefficients': {'alpha': 0.2, 'beta': 0.8, 'gamma': 0.2}},
+        {'latent_dimension': 20, 'coefficients': {'alpha': 0.3, 'beta': 1.2, 'gamma': 0.3}},
+        {'latent_dimension': 20, 'coefficients': {'alpha': 0.4, 'beta': 1.6, 'gamma': 0.4}},
+        {'latent_dimension': 20, 'coefficients': {'alpha': 0.5, 'beta': 2.0, 'gamma': 0.5}},
+        {'latent_dimension': 24, 'coefficients': {'alpha': 0.01, 'beta': 0.04, 'gamma': 0.01}},
+        {'latent_dimension': 24, 'coefficients': {'alpha': 0.05, 'beta': 0.2, 'gamma': 0.05}},
+        {'latent_dimension': 24, 'coefficients': {'alpha': 0.1, 'beta': 0.4, 'gamma': 0.1}},
+        {'latent_dimension': 24, 'coefficients': {'alpha': 0.2, 'beta': 0.8, 'gamma': 0.2}},
+        {'latent_dimension': 24, 'coefficients': {'alpha': 0.3, 'beta': 1.2, 'gamma': 0.3}},
+        {'latent_dimension': 24, 'coefficients': {'alpha': 0.4, 'beta': 1.6, 'gamma': 0.4}},
+        {'latent_dimension': 24, 'coefficients': {'alpha': 0.5, 'beta': 2.0, 'gamma': 0.5}},
+    ]
 
-    '''
-    for latent_dim in [8, 16]:
-        for alpha in [0.5]:
-            for beta in [1.0, 4.0, 8.0]:
-                for gamma in [0.1, 1.0, 2.0]:
-                    parameters['latent_dimension'] = latent_dim
-                    parameters['coefficients']['alpha'] = float(alpha)
-                    parameters['coefficients']['beta'] = float(beta)
-                    parameters['coefficients']['gamma'] = float(gamma)
-                    main(parameters)
-    '''
+    for k in combinations:
+        parameters.update(k)
+        main(parameters)

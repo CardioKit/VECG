@@ -4,6 +4,8 @@ import keras
 import numpy as np
 import math
 
+from utils.helper import Helper
+
 tfd = tfp.distributions
 
 
@@ -17,12 +19,24 @@ class VAE(tf.keras.Model):
         self._coefficients = coefficients
         self._dataset_size = dataset_size
         self._dist = dist
+        self._mi = tf.Variable(0.0, name="mi", trainable=False)
+        self._mi_val = tf.Variable(0.0, name="mi_val", trainable=False)
         self._loss_tracker = keras.metrics.Mean(name="loss")
+        self._recon_tracker = keras.metrics.Mean(name="recon")
+        self._kl_tracker = keras.metrics.Mean(name="kl")
+        self._mi_tracker = keras.metrics.Mean(name="mi")
+        self._tc_tracker = keras.metrics.Mean(name="tc")
+        self._dwkl_tracker = keras.metrics.Mean(name="dw_kl")
 
     @property
     def metrics(self):
         return [
             self._loss_tracker,
+            self._recon_tracker,
+            self._kl_tracker,
+            self._mi_tracker,
+            self._tc_tracker,
+            self._dwkl_tracker
         ]
 
     @staticmethod
@@ -58,6 +72,22 @@ class VAE(tf.keras.Model):
         reconstructed = self._decoder(z)
         return reconstructed
 
+    @property
+    def mi(self):
+        return self._mi
+
+    @mi.setter
+    def mi(self, value):
+        self._mi.assign(value)
+
+    @property
+    def mi_val(self):
+        return self._mi_val
+
+    @mi.setter
+    def mi_val(self, value):
+        self._mi_val.assign(value)
+
     def call(self, inputs):
         _, _, z = self.encode(inputs)
         reconstruction = self.decode(z)
@@ -72,6 +102,12 @@ class VAE(tf.keras.Model):
         grads = tape.gradient(loss_value['loss'], self.trainable_weights)
         self.optimizer.apply_gradients(zip(grads, self.trainable_weights))
         self._loss_tracker.update_state(loss_value['loss'])
+        self._recon_tracker.update_state(loss_value['recon'])
+        self._kl_tracker.update_state(loss_value['kl_loss'])
+        self._mi_tracker.update_state(loss_value['mi'])
+        self._tc_tracker.update_state(loss_value['tc'])
+        self._dwkl_tracker.update_state(loss_value['dw_kl'])
+        self._mi.assign(loss_value['mi'])
         return loss_value
 
     @tf.function
@@ -80,6 +116,7 @@ class VAE(tf.keras.Model):
         z = self.reparameterize(z_mean, z_log_var)
         reconstruction = self._decoder(z)
         loss_value = self._loss(reconstruction, data, z_mean, z_log_var, z)
+        self._mi_val.assign(loss_value['mi'])
         return loss_value
 
     def log_normal_pdf(self, sample, mean, logvar):
@@ -112,17 +149,23 @@ class VAE(tf.keras.Model):
         return tf.math.log(W)
 
     def compute_information_gain(self, data):
-        mu, log_var, z = self.encode(data)
-        x_batch, nz = mu.shape[0], mu.shape[1]
+        # Approximate the mutual information between x and z
+        # [x_batch, nz]
 
-        neg_entropy = np.mean(-0.5 * nz * math.log(2 * math.pi) - 0.5 * np.sum(1 + log_var, axis=-1))
+        mu, log_var = self._encoder.predict(Helper.data_generator(data, method='stop'))
+        z = self.reparameterize(mu, log_var)
+        size_batch, nz = mu.shape
+        logiw_mat = self.log_importance_weight_matrix(size_batch)
 
-        mu, log_var = tf.expand_dims(mu, 0, name=None), tf.expand_dims(log_var, 0, name=None)
-        var = np.exp(log_var)
-        dev = tf.expand_dims(z, 1, name=None) - mu
+        # E_{q(z|x)}log(q(z|x)) = -0.5*nz*log(2*pi) - 0.5*(1+logvar).sum(axis=-1)
+        neg_entropy = np.mean(np.sum(-0.5 * nz * np.log(2 * math.pi) - 0.5 * (1 + log_var), axis=-1))
 
-        log_density = -0.5 * np.sum((dev ** 2) / var, axis=-1) - 0.5 * (
-                nz * math.log(2 * math.pi) + np.sum(log_var, axis=-1))
-        log_qz = tf.reduce_sum(log_density, axis=1) - math.log(x_batch)
-        res = neg_entropy - np.mean(log_qz, axis=-1)
-        return res
+        log_qz_prob = self._dist(
+            tf.expand_dims(mu, 0), tf.expand_dims(tf.exp(log_var), 0),
+        ).log_prob(tf.expand_dims(z, 1))
+        log_qz = tf.reduce_logsumexp(logiw_mat + tf.reduce_sum(log_qz_prob, axis=2), axis=1)
+
+        mi = neg_entropy - np.mean(log_qz, axis=-1)
+
+        tf.print('\n\n')
+        return mi

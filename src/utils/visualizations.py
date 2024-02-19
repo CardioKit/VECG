@@ -86,8 +86,10 @@ class Visualizations:
         fig = plt.figure(figsize=(10, 5))
         fig.tight_layout()
         for k in metrics:
-            ax = sns.lineplot(train_progress, x='epoch', y=k)
+            ax = sns.lineplot(train_progress, x='epoch', y=k, legend=False, label=k)
             ax.set_yscale("log")
+        plt.legend()
+        plt.show()
 
     @staticmethod
     def plot_variations(df, ld, model, dimension=0, num_rows=1000):
@@ -120,7 +122,7 @@ class Visualizations:
             ylabel='Dimension ' + str(dim_y),
             title="Slice through the embedding space.",
         )
-        plt.legend(title=title_legend)
+        plt.legend(title=title_legend, frameon=False)
         plt.tight_layout()
         plt.show()
         fig.savefig(path, dpi=300)

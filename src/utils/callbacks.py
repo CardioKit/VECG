@@ -7,16 +7,22 @@ from utils.helper import Helper
 
 class CoefficientScheduler(tf.keras.callbacks.Callback):
 
-    def __init__(self, epochs, coefficients):
+    def __init__(self, epochs, coefficients, coefficient_raise):
         super(CoefficientScheduler, self).__init__()
 
-        self._alpha_cycle = np.ones(epochs) * coefficients['alpha']
-        self._beta_cycle = np.ones(epochs) * coefficients['beta']
-        self._gamma_cycle = np.ones(epochs) * coefficients['gamma']
+        alpha = coefficients['alpha']
+        beta = coefficients['beta']
+        gamma = coefficients['gamma']
 
-        # np.arange(epochs) // coefficients_raise * coefficients['alpha']
-        # np.arange(epochs) // coefficients_raise * coefficients['beta']
-        # np.arange(epochs) // coefficients_raise * coefficients['gamma']
+        self._alpha_cycle = np.ones(epochs) * alpha
+        self._beta_cycle = np.ones(epochs) * beta
+        self._gamma_cycle = np.ones(epochs) * gamma
+
+        #coef_raise = annealing['coefficients_raise']
+        #self._alpha_cycle[0:coef_raise] = np.linspace(0, alpha, coef_raise)
+        #self._beta_cycle[0:coef_raise] = np.linspace(0, beta, coef_raise)
+        #self._gamma_cycle[0:coef_raise] = np.linspace(0, gamma, coef_raise)
+
 
     def on_epoch_begin(self, epoch, logs=None):
         self.model.alpha = tf.cast(self._alpha_cycle[epoch], tf.float32)
@@ -25,7 +31,11 @@ class CoefficientScheduler(tf.keras.callbacks.Callback):
 
 
 class ReconstructionPlot(tf.keras.callbacks.Callback):
-    def __init__(self, dataset, sample, path, period=20):
+    def __init__(self, dataset, path, params):
+
+        sample = params['index_sample']
+        period = params['period_plot']
+
         super(ReconstructionPlot, self).__init__()
         self._data = Helper.get_sample(dataset, sample)
         self._period = period
@@ -49,19 +59,19 @@ class CollapseCallback(tf.keras.callbacks.Callback):
     CRED: https://github.com/jxhe/vae-lagging-encoder/blob/cdc4eb9d9599a026bf277db74efc2ba1ec203b15/image.py#L133
     '''
 
-    def __init__(self, data, aggressive=True):
+    def __init__(self, data, path, aggressive=True):
         super().__init__()
-        self._aggressive = aggressive
         self._data = data
-        self._last_value = -np.inf
-        batch = next(iter(data))
-        self._ecg = batch['ecg']['I']
+        self._path = path
+        self._aggressive = aggressive
+        self._last_mi = -np.inf
 
-    def on_epoch_begin(self, epoch, logs=None):
-        res = self.model.compute_information_gain(self._ecg)
-        aggr = res >= self._last_value
+    def on_epoch_end(self, epoch, logs=None):
+        mi = self.model._mi_val
+        aggr = mi >= self._last_mi
+        tf.print('Epoch', epoch, 'MI', mi, 'LV', self._last_mi, 'Aggressive', aggr)
         if aggr:
             self.model._decoder.trainable = False
         else:
             self.model._decoder.trainable = True
-        self._last_value = res
+        self._last_mi = tf.identity(mi)

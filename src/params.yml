@@ -3,21 +3,21 @@ train_dataset:
   - 'synth:1.0.11'
   - 'synth:1.0.9'
   - zheng
-  - ptb
-  - medalcare
+  #- ptb
+  #- medalcare
   split: 'train'
   shuffle_size: 1024
   batch_size: 1024
 val_dataset:
   name:
-  - medalcare
-  split: 'validation'
+  - 'ptb' #'medalcare'
+  split: 'train' #'validation'
   shuffle_size: 1024
   batch_size: 1024
-save_results_path: ../results/
+save_results_path: ../results_round_5/
 seed: 42
 epochs: 200
-latent_dimension: 12
+latent_dimension: 8
 learning_rate: 0.002
 coefficients:
   alpha: 1.0
@@ -25,8 +25,9 @@ coefficients:
   gamma: 1.0
 coefficients_raise: 20
 early_stopping: 50
-period_reconstruction_plot: 20
-index_tracked_sample: 5
+reconstruction:
+  period_plot: 20
+  index_sample: 5
 encode_data:
   synth1:
     name: 'synth:1.0.11'
