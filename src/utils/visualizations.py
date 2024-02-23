@@ -139,3 +139,94 @@ class Visualizations:
         plt.show()
         fig.savefig(path, dpi=300)
         return cm
+
+    @staticmethod
+    def plot_along_axis(dim, feature, ld, x, path, model):
+        plt.figure(figsize=(15, 5))
+        for k in x:
+            embedding = np.zeros(ld).astype(np.float32)
+            embedding[dim] = k
+            embedding = np.reshape(embedding, (1, ld))
+            decoded = signal_smooth(np.reshape(model.decode(embedding), 500))
+            plt.plot(decoded, label=str(k))
+            plt.title('Dimension ' + str(dim) + ': ' + feature)
+        plt.legend(title='Value', frameon=False)
+        plt.savefig(path + 'reconstruction_toggle_' + str(dim) + '.png', dpi=300, bbox_inches='tight')
+
+    @staticmethod
+    def reconstruct(dim, x, model, ld):
+        embedding = np.zeros(ld).astype(np.float32)
+        embedding[dim] = x
+        embedding = np.reshape(embedding, (1, ld))
+        decoded = signal_smooth(np.reshape(model.decode(embedding), 500))
+        plt.figure(figsize=(15, 5))
+        plt.plot(decoded)
+
+    @staticmethod
+    def plot_confustion_matrix(X_train, X_test, y_train, y_test, predictor, path, normalize=False, cmap='Greens'):
+        predictor.fit(X_train.fillna(0), y_train)
+        predictions = predictor.predict(X_test.fillna(0))
+        cm = confusion_matrix(y_test, predictions, labels=predictor.classes_)
+        fig = plt.figure(figsize=(15, 15))
+        fig.tight_layout()
+        if normalize:
+            disp = ConfusionMatrixDisplay(confusion_matrix=np.round(cm / np.sum(cm, axis=1), 2),
+                                          display_labels=predictor.classes_)
+        else:
+            disp = ConfusionMatrixDisplay(confusion_matrix=np.round(cm, 2), display_labels=predictor.classes_)
+        disp.plot(cmap=cmap)
+        plt.show()
+        disp.figure_.savefig(path, dpi=300)
+        return cm, predictor.classes_
+
+    @staticmethod
+    def print_metrics_binary(cm):
+        print('Accuracy:   \t', np.trace(cm) / np.sum(cm), '\n')
+        print('Sensitivity:\t', cm[0, 0] / (cm[0, 0] + cm[1, 0]), '\n')
+        print('Specificity:\t', cm[1, 1] / (cm[1, 1] + cm[0, 1]), '\n')
+
+    @staticmethod
+    def print_metrics_multiclass(cm):
+        print('Accuracy:   \t', np.trace(cm) / np.sum(cm), '\n')
+
+    @staticmethod
+    def pandas_to_latex(df):
+        return df.round(2).sort_values(
+            by=['latent_dim', 'alpha', 'beta', 'gamma'],
+        )[[
+            'latent_dim', 'alpha', 'beta', 'gamma', 'loss', 'recon', 'mi', 'tc', 'dw_kl', 'MIG'
+        ]].to_latex(
+            index=False
+        ).replace(
+            '\n', ''
+        ).replace(
+            '.000000', ''
+        ).replace(
+            '0000', ''
+        )
+
+    @staticmethod
+    def plot_axis_relation(interpretation, ld, save_path, DPI=300):
+        a = pd.DataFrame()
+        ind = 0
+        for k in interpretation:
+            b = pd.DataFrame(interpretation[k]['Scores']).transpose()
+            b.columns = interpretation[k]['Features']
+            b = b.loc[:, ~b.columns.duplicated()].copy()
+            a = pd.concat([a, b])
+            ind = ind + 1
+        a.index = range(0, ld)
+        fig = plt.figure(figsize=(5, 5))
+        ax = sns.heatmap(a.transpose(), cmap="crest")
+        ax.set(xlabel="Dimension", ylabel="Feature")
+        fig.savefig(save_path, dpi=DPI, bbox_inches='tight')
+
+    @staticmethod
+    def print_axis_interpretation(interpretation):
+        print('Dimension', '\t|', 'Features and Scores (ordered by score)')
+        print('____________________________________________________________________________')
+        for k in interpretation.items():
+            string_build = str(k[0][4:]) + '\t\t|'
+            for j in range(0, 4):
+                string_build += str(k[1]['Features'][j]) + ': ' + str(np.round(k[1]['Scores'][j], 5)) + '\t|'
+            print(string_build)

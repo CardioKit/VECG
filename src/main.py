@@ -25,7 +25,7 @@ def main(parameters):
     start_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     base_path = parameters['save_results_path'] + start_time + '/'
     Helper.generate_paths(
-        [base_path, base_path + 'evaluation/', base_path + 'model_best/', base_path + 'model_final/',
+        [base_path, base_path + 'model_best/', base_path + 'model_final/',
          base_path + 'training/reconstruction/', base_path + 'training/collapse/']
     )
     Helper.write_json_file(parameters, base_path + 'params.json')
