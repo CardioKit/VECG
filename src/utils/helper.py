@@ -8,6 +8,11 @@ import tensorflow_datasets as tfds
 from sklearn.decomposition import PCA
 from sklearn.linear_model import LinearRegression
 from src.metrics.disentanglement import Disentanglement
+from sklearn.model_selection import GridSearchCV, PredefinedSplit
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+import numpy as np
 
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
@@ -306,4 +311,37 @@ class Helper:
         df.beat = df.beat.replace(0.0, 'Normal').replace(1.0, 'Unclassified').replace(2.0, 'PAC').replace(3.0, 'PVC')
         df = df[df.beat != 'Unclassified']
         return df
+
+
+    @staticmethod
+    def cross_validation_knn(X_train, X_val, y_train, y_val):
+        X_combined = np.vstack((X_train, X_val))
+        y_combined = np.concatenate((y_train, y_val))
+
+        test_fold = np.concatenate([
+            -np.ones(X_train.shape[0]),
+            np.zeros(X_val.shape[0])
+        ])
+
+        ps = PredefinedSplit(test_fold)
+
+        imputer = SimpleImputer(strategy='constant', fill_value=0)
+
+        knn = KNeighborsClassifier()
+
+        pipeline = Pipeline(steps=[('imputer', imputer), ('knn', knn)])
+
+        param_grid = {
+            'knn__n_neighbors': range(3, 50)
+        }
+
+        grid_search = GridSearchCV(pipeline, param_grid, cv=ps, scoring='accuracy')
+
+        grid_search.fit(X_combined, y_combined)
+
+        best_k = grid_search.best_params_['knn__n_neighbors']
+        best_score = grid_search.best_score_
+
+        print(f'Best k: {best_k} with accuracy: {best_score}')
+        return best_k
 

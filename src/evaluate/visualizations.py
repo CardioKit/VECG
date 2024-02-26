@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+import tensorflow as tf
 import seaborn as sns
 from neurokit2.signal import signal_smooth
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
@@ -222,11 +223,83 @@ class Visualizations:
         fig.savefig(save_path, dpi=DPI, bbox_inches='tight')
 
     @staticmethod
-    def print_axis_interpretation(interpretation):
-        print('Dimension', '\t|', 'Features and Scores (ordered by score)')
-        print('____________________________________________________________________________')
+    def print_axis_interpretation(interpretation, depth=4):
+        columns = ['Dimension'] + ['Feature_' + str(k) for k in range(0, depth)]
+        df = pd.DataFrame(columns=columns)
         for k in interpretation.items():
-            string_build = str(k[0][4:]) + '\t\t|'
+            row = [k[0][4:]]
             for j in range(0, 4):
-                string_build += str(k[1]['Features'][j]) + ': ' + str(np.round(k[1]['Scores'][j], 5)) + '\t|'
-            print(string_build)
+                row.append(str(k[1]['Features'][j]) + ': ' + str(np.round(k[1]['Scores'][j], 5)))
+            temp = pd.DataFrame(row, index=columns).transpose()
+            df = pd.concat([df, temp])
+        return df
+
+    @staticmethod
+    def decode_and_smooth(dim_values, ld, model, dim):
+        # Precompute all decoded signals for a range of values in a given dimension
+        embeddings = np.zeros((len(dim_values), ld))
+        for i, k in enumerate(dim_values):
+            embeddings[i, dim] = k
+        decoded_signals = [
+            signal_smooth(np.array(model.decode(tf.cast(embedding.reshape(1, ld), tf.float32))).reshape(500)) for
+            embedding in embeddings]
+        return decoded_signals
+
+    @staticmethod
+    def plot_with_facetgrid(ld, x_values, path, model, interpretation, dpi):
+        # Create a DataFrame to hold all the decoded signals and their metadata
+        all_data = []
+        for dim in range(ld):
+            dim_values = Visualizations.decode_and_smooth(x_values, ld, model, dim)
+            for i, value in enumerate(x_values):
+                for point in dim_values[i]:
+                    all_data.append({'Dimension': dim, 'Value': value, 'Signal': point})
+
+        data = pd.DataFrame(all_data)
+        data.reset_index(inplace=True)
+        data['index'] = data['index'] % 500
+        data = data[(data.Dimension != 0) & (data.Dimension != 2)]
+        # Create a FacetGrid
+        g = sns.FacetGrid(data, col='Dimension', col_wrap=1, sharex=True, sharey=3.5, aspect=4)
+        g.map_dataframe(sns.lineplot, x='index', y='Signal', hue='Value', palette='viridis')
+        # Set titles and save each plot
+        for ax, dim in zip(g.axes.flatten(), [1, 3, 4, 5, 6, 7, 8, 9, 10, 11]):
+            feature = interpretation['Dim ' + str(dim)]['Features'][0:3]
+            score = interpretation['Dim ' + str(dim)]['Scores'][0:3]
+            title = ' | '.join(
+                [f"{feat.replace('_', ' ').title().replace(' ', '-')} {np.round(sco, 2)}" for feat, sco in
+                 zip(feature, score)])
+            ax.set_title('Dimension ' + str(dim) + ': ' + title)
+        plt.legend()
+        plt.savefig(path + 'reconstruction_grid.png', dpi=DPI, bbox_inches='tight')
+
+    @staticmethod
+    def plot_scatter(embedding, col1, col2, vars1, vars2, name1, name2, DIP,
+                     path_save='../analysis/media/embedding_synthetic.png'):
+        df_melted = pd.melt(embedding, id_vars=[col1, col2],
+                            value_vars=[vars1, vars2],
+                            var_name='Wave Characteristic', value_name='Color_')
+
+        df_melted['Wave Characteristic'] = df_melted['Wave Characteristic'].replace('t_height', name1).replace('p_height',
+                                                                                                               name2)
+
+        plt.figure(figsize=(15, 10))
+        g = sns.FacetGrid(df_melted, col='Wave Characteristic', height=5, aspect=1)
+
+        # Map the scatterplot
+        g.map(sns.scatterplot, col1, col2, 'Color_', s=5, palette='viridis')
+
+        g.set_axis_labels("", 'Dimension ' + str(col2))
+
+        n_cols = g.axes.shape[0]
+
+        for i, ax in enumerate(g.axes.flat):
+            if i < len(g.axes.flat) - n_cols:
+                ax.set_xlabel('')
+
+        g.fig.text(0.5, 0.04, 'Dimension ' + str(col1), ha='center')
+
+        plt.legend(markerscale=2, frameon=False, loc='center left', bbox_to_anchor=(1, 0.5))
+        # plt.tight_layout()
+        fig = g.figure
+        fig.savefig(path_save, dpi=DIP, bbox_inches='tight')
