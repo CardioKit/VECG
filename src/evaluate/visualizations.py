@@ -5,7 +5,7 @@ import tensorflow as tf
 import seaborn as sns
 from neurokit2.signal import signal_smooth
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
-
+from sklearn.metrics import f1_score
 
 class Visualizations:
 
@@ -62,7 +62,7 @@ class Visualizations:
         plt.close()
 
     @staticmethod
-    def eval_dimensions(ld, model, dimension, path, df=None, l_bound=-10.0, u_bound=10.0, num_samples=1000):
+    def eval_dimensions(ld, model, dimension, path, dpi, df=None, l_bound=-10.0, u_bound=10.0, num_samples=1000):
 
         mean_values = np.zeros(ld).astype(np.float32) #, std_values = np.mean(df.iloc[:, :ld], axis=0), np.std(df.iloc[:, :ld], axis=0)
         result_matrix = np.tile(mean_values, (num_samples, 1))
@@ -80,7 +80,7 @@ class Visualizations:
         plt.plot(range(0, len(mean)), mean, 'k-')
         plt.fill_between(range(0, len(mean)), mean - std, mean + std)
         plt.title("ECG reconstruction by toggling dimension " + str(dimension) + ".")
-        fig.savefig(path, dpi=300)
+        fig.savefig(path, dpi=dpi)
 
     @staticmethod
     def plot_trainings_process(train_progress, metrics):
@@ -112,7 +112,7 @@ class Visualizations:
         sns.lineplot(data=reconstruct, x="timestamp", y="values")
 
     @staticmethod
-    def plot_embedding_slice(df, dim_x, dim_y, hue, title_legend, path):
+    def plot_embedding_slice(df, dim_x, dim_y, hue, title_legend, path, dpi):
         fig = plt.figure(figsize=(10, 10))
         fig.tight_layout()
         ax = sns.scatterplot(
@@ -126,10 +126,10 @@ class Visualizations:
         plt.legend(title=title_legend, frameon=False)
         plt.tight_layout()
         plt.show()
-        fig.savefig(path, dpi=300)
+        fig.savefig(path, dpi=dpi)
 
     @staticmethod
-    def plot_confustion_matrix(X_train, X_test, y_train, y_test, predictor, path, cmap='Greens'):
+    def plot_confustion_matrix(X_train, X_test, y_train, y_test, predictor, path, dpi, cmap='Greens'):
         predictor.fit(X_train.fillna(0), y_train)
         predictions = predictor.predict(X_test.fillna(0))
         cm = confusion_matrix(y_test, predictions, labels=predictor.classes_)
@@ -138,11 +138,11 @@ class Visualizations:
         disp = ConfusionMatrixDisplay(confusion_matrix=np.round(cm / np.sum(cm, axis=0), 2), display_labels=predictor.classes_)
         disp.plot(cmap=cmap)
         plt.show()
-        fig.savefig(path, dpi=300)
+        fig.savefig(path, dpi=dpi)
         return cm
 
     @staticmethod
-    def plot_along_axis(dim, feature, ld, x, path, model):
+    def plot_along_axis(dim, feature, ld, x, path, model, dpi):
         plt.figure(figsize=(15, 5))
         for k in x:
             embedding = np.zeros(ld).astype(np.float32)
@@ -152,7 +152,7 @@ class Visualizations:
             plt.plot(decoded, label=str(k))
             plt.title('Dimension ' + str(dim) + ': ' + feature)
         plt.legend(title='Value', frameon=False)
-        plt.savefig(path + 'reconstruction_toggle_' + str(dim) + '.png', dpi=300, bbox_inches='tight')
+        plt.savefig(path + 'reconstruction_toggle_' + str(dim) + '.png', dpi=dpi, bbox_inches='tight')
 
     @staticmethod
     def reconstruct(dim, x, model, ld):
@@ -164,7 +164,7 @@ class Visualizations:
         plt.plot(decoded)
 
     @staticmethod
-    def plot_confustion_matrix(X_train, X_test, y_train, y_test, predictor, path, normalize=False, cmap='Greens'):
+    def plot_confustion_matrix(X_train, X_test, y_train, y_test, predictor, path, dpi, normalize=False, cmap='Greens'):
         predictor.fit(X_train.fillna(0), y_train)
         predictions = predictor.predict(X_test.fillna(0))
         cm = confusion_matrix(y_test, predictions, labels=predictor.classes_)
@@ -177,18 +177,20 @@ class Visualizations:
             disp = ConfusionMatrixDisplay(confusion_matrix=np.round(cm, 2), display_labels=predictor.classes_)
         disp.plot(cmap=cmap)
         plt.show()
-        disp.figure_.savefig(path, dpi=300)
-        return cm, predictor.classes_
+        disp.figure_.savefig(path, dpi=dpi)
+        return cm, predictor.classes_, predictions
 
     @staticmethod
-    def print_metrics_binary(cm):
+    def print_metrics_binary(cm, y_test, predictions):
         print('Accuracy:   \t', np.trace(cm) / np.sum(cm), '\n')
         print('Sensitivity:\t', cm[0, 0] / (cm[0, 0] + cm[1, 0]), '\n')
         print('Specificity:\t', cm[1, 1] / (cm[1, 1] + cm[0, 1]), '\n')
+        print('F1 Score:\t', f1_score(y_test, predictions), '\n')
 
     @staticmethod
-    def print_metrics_multiclass(cm):
+    def print_metrics_multiclass(cm, y_test, predictions):
         print('Accuracy:   \t', np.trace(cm) / np.sum(cm), '\n')
+        print('Weighted F1 Score:   \t', f1_score(y_test, predictions, average='weighted'), '\n')
 
     @staticmethod
     def pandas_to_latex(df):
@@ -207,7 +209,7 @@ class Visualizations:
         )
 
     @staticmethod
-    def plot_axis_relation(interpretation, ld, save_path, DPI=300):
+    def plot_axis_relation(interpretation, ld, save_path, dpi):
         a = pd.DataFrame()
         ind = 0
         for k in interpretation:
@@ -220,7 +222,7 @@ class Visualizations:
         fig = plt.figure(figsize=(5, 5))
         ax = sns.heatmap(a.transpose(), cmap="crest")
         ax.set(xlabel="Dimension", ylabel="Feature")
-        fig.savefig(save_path, dpi=DPI, bbox_inches='tight')
+        fig.savefig(save_path, dpi=dpi, bbox_inches='tight')
 
     @staticmethod
     def print_axis_interpretation(interpretation, depth=4):
@@ -246,7 +248,7 @@ class Visualizations:
         return decoded_signals
 
     @staticmethod
-    def plot_with_facetgrid(ld, x_values, path, model, interpretation, dpi):
+    def plot_with_facetgrid(ld, x_values, path, model, interpretation, dpi, palette='viridis'):
         # Create a DataFrame to hold all the decoded signals and their metadata
         all_data = []
         for dim in range(ld):
@@ -261,7 +263,7 @@ class Visualizations:
         data = data[(data.Dimension != 0) & (data.Dimension != 2)]
         # Create a FacetGrid
         g = sns.FacetGrid(data, col='Dimension', col_wrap=1, sharex=True, sharey=3.5, aspect=4)
-        g.map_dataframe(sns.lineplot, x='index', y='Signal', hue='Value', palette='viridis')
+        g.map_dataframe(sns.lineplot, x='index', y='Signal', hue='Value', palette=palette)
         # Set titles and save each plot
         for ax, dim in zip(g.axes.flatten(), [1, 3, 4, 5, 6, 7, 8, 9, 10, 11]):
             feature = interpretation['Dim ' + str(dim)]['Features'][0:3]
@@ -271,11 +273,11 @@ class Visualizations:
                  zip(feature, score)])
             ax.set_title('Dimension ' + str(dim) + ': ' + title)
         plt.legend()
-        plt.savefig(path + 'reconstruction_grid.png', dpi=DPI, bbox_inches='tight')
+        plt.savefig(path + 'reconstruction_grid.png', dpi=dpi, bbox_inches='tight')
 
     @staticmethod
     def plot_scatter(embedding, col1, col2, vars1, vars2, name1, name2, DIP,
-                     path_save='../analysis/media/embedding_synthetic.png'):
+                     path_save='../analysis/media/embedding_synthetic.png', palette='viridis'):
         df_melted = pd.melt(embedding, id_vars=[col1, col2],
                             value_vars=[vars1, vars2],
                             var_name='Wave Characteristic', value_name='Color_')
@@ -287,7 +289,7 @@ class Visualizations:
         g = sns.FacetGrid(df_melted, col='Wave Characteristic', height=5, aspect=1)
 
         # Map the scatterplot
-        g.map(sns.scatterplot, col1, col2, 'Color_', s=5, palette='viridis')
+        g.map(sns.scatterplot, col1, col2, 'Color_', s=5, palette=palette)
 
         g.set_axis_labels("", 'Dimension ' + str(col2))
 
