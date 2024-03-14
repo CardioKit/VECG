@@ -52,6 +52,14 @@ options:
   -p, --path_config     location of the params file (default: ./params.yml)
 ```
 
+## Evaluation
+
+The results of the runs can be analyzed with the jupyter notebook:
+
+```
+./analysis/article.ipynb
+```
+
 ## How to cite?
 
 If you want to either use code or refer to results, please cite the following article: (To be determined)
