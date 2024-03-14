@@ -248,8 +248,7 @@ class Visualizations:
         return decoded_signals
 
     @staticmethod
-    def plot_with_facetgrid(ld, x_values, path, model, interpretation, dpi, palette='viridis'):
-        # Create a DataFrame to hold all the decoded signals and their metadata
+    def plot_with_facetgrid(ld, x_values, path, model, interpretation, dpi, dimensions, palette='viridis'):
         all_data = []
         for dim in range(ld):
             dim_values = Visualizations.decode_and_smooth(x_values, ld, model, dim)
@@ -260,19 +259,21 @@ class Visualizations:
         data = pd.DataFrame(all_data)
         data.reset_index(inplace=True)
         data['index'] = data['index'] % 500
-        data = data[(data.Dimension != 0) & (data.Dimension != 2)]
-        # Create a FacetGrid
-        g = sns.FacetGrid(data, col='Dimension', col_wrap=1, sharex=True, sharey=3.5, aspect=4)
+        data = data[(data.Dimension != 0) & (data.Dimension != 2) & (data.Dimension != 5) & (data.Dimension != 8)]
+        g = sns.FacetGrid(data, col='Dimension', col_wrap=1, sharex=True, sharey=False, aspect=4, height=3)
         g.map_dataframe(sns.lineplot, x='index', y='Signal', hue='Value', palette=palette)
-        # Set titles and save each plot
-        for ax, dim in zip(g.axes.flatten(), [1, 3, 4, 5, 6, 7, 8, 9, 10, 11]):
-            feature = interpretation['Dim ' + str(dim)]['Features'][0:3]
-            score = interpretation['Dim ' + str(dim)]['Scores'][0:3]
-            title = ' | '.join(
-                [f"{feat.replace('_', ' ').title().replace(' ', '-')} {np.round(sco, 2)}" for feat, sco in
-                 zip(feature, score)])
-            ax.set_title('Dimension ' + str(dim) + ': ' + title)
+        for ax, dim in zip(g.axes.flatten(), dimensions):
+            feature = interpretation['Dim ' + str(dim)]['Features']
+            #score = interpretation['Dim ' + str(dim)]['Scores']
+            rater = interpretation['Dim ' + str(dim)]['Rater']
+
+            ax.set_xlabel("Time [ms]")
+            ax.set_ylabel("")
+            description_text = 'Analysis: ' + feature[0] + '\n' + 'Expert: ' + rater[0]
+            ax.text(0.9, 0.9, description_text, horizontalalignment='right', verticalalignment='center',
+                    transform=ax.transAxes, bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=1'))
         plt.legend()
+        plt.tight_layout(pad=0)
         plt.savefig(path + 'reconstruction_grid.png', dpi=dpi, bbox_inches='tight')
 
     @staticmethod
