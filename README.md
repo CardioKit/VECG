@@ -1,4 +1,4 @@
-# 1-lead Electrocardiogram Clustering
+# Disentangled Representational Learning of Single Lead Electrocardiogram Signals using Variational Autoencoder
 
 This work focuses on clustering 1-lead electrocardiogram (ECG) heartbeats using beta total correlation variational autoencoder ($\beta$-TCVAE).
 The objective is to detect irregular morphologies in ECG signals, which can serve as indicators of cardiac anomalies.
