@@ -37,7 +37,7 @@ cd ./ECG-TFDS/src/zheng
 tfds build --register_checksums
 ```
 
-## Running the Code:
+## Running the Code
 
 Execute the main file to run the code:
 
@@ -50,4 +50,20 @@ The main file requires a configuration file for parameterization:
 options:
   -h, --help            show this help message and exit
   -p, --path_config     location of the params file (default: ./params.yml)
+```
+
+## How to cite?
+
+If you want to either use code or refer to results, please cite the following article: (To be determined)
+```
+@article{kapsecker2024disentangled,
+  title={Disentangled Representational Learning of Single Lead Electrocardiogram Signals using Variational Autoencoder},
+  author={Kapsecker, Maximilian and Möller, Matthias C and Jonas, Stephan M},
+  journal={TBD},
+  volume={TBD},
+  number={TBD},
+  pages={TBD},
+  year={TBD},
+  publisher={TBD}
+}
 ```
