@@ -259,12 +259,11 @@ class Visualizations:
         data = pd.DataFrame(all_data)
         data.reset_index(inplace=True)
         data['index'] = data['index'] % 500
-        data = data[(data.Dimension != 0) & (data.Dimension != 2) & (data.Dimension != 5) & (data.Dimension != 8)]
+        data = data[data.Dimension.isin(dimensions)]
         g = sns.FacetGrid(data, col='Dimension', col_wrap=1, sharex=True, sharey=False, aspect=4, height=3)
         g.map_dataframe(sns.lineplot, x='index', y='Signal', hue='Value', palette=palette)
         for ax, dim in zip(g.axes.flatten(), dimensions):
             feature = interpretation['Dim ' + str(dim)]['Features']
-            #score = interpretation['Dim ' + str(dim)]['Scores']
             rater = interpretation['Dim ' + str(dim)]['Rater']
 
             ax.set_xlabel("Time [ms]")
