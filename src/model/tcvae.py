@@ -1,4 +1,4 @@
-from model.vae import VAE
+from src.model.vae import VAE
 import tensorflow as tf
 import tensorflow_probability as tfp
 

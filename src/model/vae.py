@@ -4,7 +4,7 @@ import keras
 import numpy as np
 import math
 
-from utils.helper import Helper
+from src.utils.helper import Helper
 
 tfd = tfp.distributions
 

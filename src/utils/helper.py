@@ -314,7 +314,7 @@ class Helper:
 
 
     @staticmethod
-    def cross_validation_knn(X_train, X_val, y_train, y_val):
+    def cross_validation_knn(X_train, X_val, y_train, y_val, scoring='accuracy'):
         X_combined = np.vstack((X_train, X_val))
         y_combined = np.concatenate((y_train, y_val))
 
@@ -335,7 +335,7 @@ class Helper:
             'knn__n_neighbors': range(3, 50)
         }
 
-        grid_search = GridSearchCV(pipeline, param_grid, cv=ps, scoring='accuracy')
+        grid_search = GridSearchCV(pipeline, param_grid, cv=ps, scoring=scoring)
 
         grid_search.fit(X_combined, y_combined)
 
@@ -344,4 +344,73 @@ class Helper:
 
         print(f'Best k: {best_k} with accuracy: {best_score}')
         return best_k
+    
+    @staticmethod
+    def calculate_f1(confusion_matrix, labels):
+        num_classes = confusion_matrix.shape[0]
+        precision = []
+        recall = []
+        f1_scores = []
+    
+        for i in range(num_classes):
+            true_positive = confusion_matrix[i, i]
+            false_positive = np.sum(confusion_matrix[:, i]) - true_positive
+            false_negative = np.sum(confusion_matrix[i, :]) - true_positive
+    
+            # Precision: TP / (TP + FP)
+            if true_positive + false_positive > 0:
+                precision_value = true_positive / (true_positive + false_positive)
+            else:
+                precision_value = 1
+            precision.append(precision_value)
+    
+            # Recall: TP / (TP + FN)
+            if true_positive + false_negative > 0:
+                recall_value = true_positive / (true_positive + false_negative)
+            else:
+                recall_value = 1
+            recall.append(recall_value)
+    
+            # F1 Score: 2 * (Precision * Recall) / (Precision + Recall)
+            if precision_value + recall_value > 0:
+                f1_value = 2 * (precision_value * recall_value) / (precision_value + recall_value)
+            else:
+                f1_value = 1
+            f1_scores.append(f1_value)
+    
+        # Macro F1 score
+        macro_f1 = np.mean(f1_scores)
+        precision_key = dict(list(zip(labels, precision)))
+        recall_key = dict(list(zip(labels, recall)))
+        f1_scores_key = dict(list(zip(labels, f1_scores)))
+        
+        return {
+            "Macro F1": macro_f1,
+            "Precision": precision_key,
+            "Recall": recall_key,
+            "F1 Scores": f1_scores_key,
+        }
 
+    @staticmethod
+    def average_metrics(dict_list, avg_metrics):    
+        # Count how many dictionaries we have
+        num_dicts = len(dict_list)
+        
+        # Sum up all the metrics across dictionaries
+        for d in dict_list:
+            avg_metrics['Macro F1'] += d['Macro F1']
+            
+            for key in avg_metrics['Precision']:
+                avg_metrics['Precision'][key] += d['Precision'].get(key, 0)
+                avg_metrics['Recall'][key] += d['Recall'].get(key, 0)
+                avg_metrics['F1 Scores'][key] += d['F1 Scores'].get(key, 0)
+        
+        # Divide by the number of dictionaries to get the averages
+        avg_metrics['Macro F1'] /= num_dicts
+        
+        for key in avg_metrics['Precision']:
+            avg_metrics['Precision'][key] /= num_dicts
+            avg_metrics['Recall'][key] /= num_dicts
+            avg_metrics['F1 Scores'][key] /= num_dicts
+        
+        return avg_metrics

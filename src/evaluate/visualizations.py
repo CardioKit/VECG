@@ -129,7 +129,7 @@ class Visualizations:
         fig.savefig(path, dpi=dpi)
 
     @staticmethod
-    def plot_confustion_matrix(X_train, X_test, y_train, y_test, predictor, path, dpi, cmap='Greens'):
+    def plot_confustion_matrix_(X_train, X_test, y_train, y_test, predictor, path, dpi, cmap='Greens'):
         predictor.fit(X_train.fillna(0), y_train)
         predictions = predictor.predict(X_test.fillna(0))
         cm = confusion_matrix(y_test, predictions, labels=predictor.classes_)
@@ -248,44 +248,54 @@ class Visualizations:
         return decoded_signals
 
     @staticmethod
-    def plot_with_facetgrid(ld, x_values, path, model, interpretation, dpi, palette='viridis'):
-        # Create a DataFrame to hold all the decoded signals and their metadata
+    def plot_with_facetgrid(ld, x_values, path, model, interpretation, dpi, dimensions, palette='viridis'):
         all_data = []
         for dim in range(ld):
             dim_values = Visualizations.decode_and_smooth(x_values, ld, model, dim)
             for i, value in enumerate(x_values):
                 for point in dim_values[i]:
                     all_data.append({'Dimension': dim, 'Value': value, 'Signal': point})
-
+    
         data = pd.DataFrame(all_data)
         data.reset_index(inplace=True)
         data['index'] = data['index'] % 500
-        data = data[(data.Dimension != 0) & (data.Dimension != 2)]
-        # Create a FacetGrid
-        g = sns.FacetGrid(data, col='Dimension', col_wrap=1, sharex=True, sharey=3.5, aspect=4)
+        data = data[data.Dimension.isin(dimensions)]
+        g = sns.FacetGrid(data, col='Dimension', col_wrap=1, sharex=True, aspect=2, height=3)
         g.map_dataframe(sns.lineplot, x='index', y='Signal', hue='Value', palette=palette)
-        # Set titles and save each plot
-        for ax, dim in zip(g.axes.flatten(), [1, 3, 4, 5, 6, 7, 8, 9, 10, 11]):
-            feature = interpretation['Dim ' + str(dim)]['Features'][0:3]
-            score = interpretation['Dim ' + str(dim)]['Scores'][0:3]
-            title = ' | '.join(
-                [f"{feat.replace('_', ' ').title().replace(' ', '-')} {np.round(sco, 2)}" for feat, sco in
-                 zip(feature, score)])
-            ax.set_title('Dimension ' + str(dim) + ': ' + title)
-        plt.legend()
+        
+        for ax, dim in zip(g.axes.flatten(), dimensions):
+            feature = interpretation['Dim ' + str(dim)]['Features']
+            rater = interpretation['Dim ' + str(dim)]['Rater']
+    
+            ax.set_xlabel("Time [ms]")
+            ax.set_ylabel("")
+            ax.set_yticks([0, 0.5, 1])
+            description_text = 'Analysis \n\u2022 ' + feature[0] + '\n\n' + 'Expert'
+            for k in rater:
+                description_text += '\n\u2022 ' + k
+            ax.text(1.0, 0.55, description_text, horizontalalignment='left', verticalalignment='center',
+                    transform=ax.transAxes, bbox=dict(facecolor='white', edgecolor='white', alpha=0.5, boxstyle='round,pad=1'))
+        g.add_legend(bbox_to_anchor=(0.44, 1.05), loc='upper center', ncol=5, title="Value of the dimension")
+        plt.tight_layout(pad=0)
         plt.savefig(path + 'reconstruction_grid.png', dpi=dpi, bbox_inches='tight')
-
+    
     @staticmethod
     def plot_scatter(embedding, col1, col2, vars1, vars2, name1, name2, DIP,
-                     path_save='../analysis/media/embedding_synthetic.png', palette='viridis'):
+                     path_save='./analysis/media/embedding_synthetic.png', palette='viridis'):
+        
         df_melted = pd.melt(embedding, id_vars=[col1, col2],
-                            value_vars=[vars1, vars2],
-                            var_name='Wave Characteristic', value_name='Color_')
+                                value_vars=[vars1, vars2],
+                                var_name='Wave Characteristic', value_name='Color_')
 
-        df_melted['Wave Characteristic'] = df_melted['Wave Characteristic'].replace('t_height', name1).replace('p_height',
-                                                                                                               name2)
+        df_melted['Wave Characteristic'] = df_melted['Wave Characteristic'].replace('t_height', name1).replace('p_height', name2)
 
-        plt.figure(figsize=(15, 10))
+        # Convert 8.8 cm to inches for width
+        width_in_inches = 8.8 / 2.54
+        # Assume a height in inches that seems reasonable (you might need to adjust this)
+        height_in_inches = width_in_inches * (3/4)  # Example aspect ratio
+    
+        # Create a figure with the desired size
+        plt.figure(figsize=(width_in_inches, height_in_inches))
         g = sns.FacetGrid(df_melted, col='Wave Characteristic', height=5, aspect=1)
 
         # Map the scatterplot
@@ -300,8 +310,9 @@ class Visualizations:
                 ax.set_xlabel('')
 
         g.fig.text(0.5, 0.04, 'Dimension ' + str(col1), ha='center')
-
-        plt.legend(markerscale=2, frameon=False, loc='center left', bbox_to_anchor=(1, 0.5))
+    
+        #g.fig.legend(markerscale=7, loc='upper center', bbox_to_anchor=(0.5, 1.04), ncol=5, borderaxespad=0., edgecolor='white')
+        plt.legend(markerscale=5, frameon=False, loc='upper center', bbox_to_anchor=(0., 1.25), ncol=5, edgecolor='white')
         # plt.tight_layout()
         fig = g.figure
         fig.savefig(path_save, dpi=DIP, bbox_inches='tight')

@@ -1,7 +1,7 @@
 import os
-from model.encoder import Encoder
-from model.decoder import Decoder
-from model.tcvae import TCVAE
+from src.model.encoder import Encoder
+from src.model.decoder import Decoder
+from src.model.tcvae import TCVAE
 import tensorflow_datasets as tfds
 import tensorflow as tf
 from keras.src.optimizers import RMSprop
@@ -44,7 +44,7 @@ def fine_tune(path_model, datasets, splits, ld, path_save):
         encoder = Encoder(ld)
         decoder = Decoder(ld)
 
-        model_personalization = TCVAE(encoder, decoder, {'alpha': 0.2, 'beta': 0.8, 'gamma': 0.2}, len(train))
+        model_personalization = TCVAE(encoder, decoder, {'alpha': 0.0, 'beta': 0.0, 'gamma': 0.0}, len(train))
         model_personalization.compile(optimizer=RMSprop(learning_rate=0.001))
         model_personalization.set_weights(model.get_weights())
         model_personalization.fit(
