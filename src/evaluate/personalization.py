@@ -5,7 +5,7 @@ from src.model.tcvae import TCVAE
 import tensorflow_datasets as tfds
 import tensorflow as tf
 from keras.src.optimizers import RMSprop
-from src.utils.helper import Helper
+from utils.helper import Helper
 import pandas as pd
 
 os.environ['TFDS_DATA_DIR'] = '/mnt/sdb/home/ml/tensorflow_datasets/'
