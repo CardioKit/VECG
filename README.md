@@ -64,14 +64,15 @@ The results of the runs can be analyzed with the jupyter notebook:
 
 If you want to either use code or refer to results, please cite the following article: (To be determined)
 ```
-@article{kapsecker2024disentangled,
-  title={Disentangled Representational Learning of Single Lead Electrocardiogram Signals using Variational Autoencoder},
+@article{kapsecker2025disentangled,
+  title={Disentangled representational learning for anomaly detection in single-lead electrocardiogram signals using variational autoencoder},
   author={Kapsecker, Maximilian and Möller, Matthias C and Jonas, Stephan M},
-  journal={TBD},
-  volume={TBD},
-  number={TBD},
-  pages={TBD},
-  year={TBD},
-  publisher={TBD}
+  journal={Computers in Biology and Medicine},
+  volume={184},
+  pages = {109422},
+  year = {2025},
+  issn = {0010-4825},
+  doi = {https://doi.org/10.1016/j.compbiomed.2024.109422},
+  url = {https://www.sciencedirect.com/science/article/pii/S0010482524015075},
 }
 ```
